@@ -1,0 +1,225 @@
+{
+  "db": "PostgreSQL",
+  "d74e97c85e03b50a0a0d85b67ca481aa05da724183ed9000c01c68d9e99ff84e": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Uuid",
+          "Text",
+          "Text",
+          "Text"
+        ]
+      }
+    },
+    "query": "\n        INSERT INTO comments (post_id, content, ip_address, user_agent)\n        VALUES ($1, $2, $3, $4)\n        RETURNING id, post_id, content, created_at, ip_address, user_agent\n        "
+  },
+  "52abb57a50c0f3c8e15820c3c9ae06a19c73ad40a2c2ab15d2bf16a0673f3f72": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Text",
+          "Text",
+          "Text"
+        ]
+      }
+    },
+    "query": "\n        INSERT INTO posts (content, ip_address, user_agent)\n        VALUES ($1, $2, $3)\n        RETURNING id, content, created_at, ip_address, user_agent\n        "
+  },
+  "6cea3071e115bc736f48e81aec6c5fde9a1c1a65ad59e9c5fdb9cd53e83d4afe": {
+    "describe": {
+      "columns": [
+        {
+          "name": "?column?",
+          "ordinal": 0,
+          "type_info": "Bool"
+        }
+      ],
+      "nullable": [
+        null
+      ],
+      "parameters": {
+        "Left": [
+          "Uuid"
+        ]
+      }
+    },
+    "query": "SELECT EXISTS(SELECT 1 FROM posts WHERE id = $1)"
+  },
+  "ce37c2eb12bc2d1c6617b3a25d99e9b7a70e0c4a95ec38aeff5de02ba5a4ae2c": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Uuid"
+        },
+        {
+          "name": "post_id",
+          "ordinal": 1,
+          "type_info": "Uuid"
+        },
+        {
+          "name": "content",
+          "ordinal": 2,
+          "type_info": "Text"
+        },
+        {
+          "name": "created_at",
+          "ordinal": 3,
+          "type_info": "Timestamptz"
+        },
+        {
+          "name": "ip_address",
+          "ordinal": 4,
+          "type_info": "Text"
+        },
+        {
+          "name": "user_agent",
+          "ordinal": 5,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        false,
+        true,
+        true
+      ],
+      "parameters": {
+        "Left": [
+          "Uuid",
+          "Int8",
+          "Int8"
+        ]
+      }
+    },
+    "query": "\n        SELECT id, post_id, content, created_at, ip_address, user_agent\n        FROM comments\n        WHERE post_id = $1\n        ORDER BY created_at ASC\n        LIMIT $2 OFFSET $3\n        "
+  },
+  "a9e1daff204f97bf30f2a1b2e7e71359e96ae3cbdf5a5ea3ae848b1fc6dfd3b8": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Uuid"
+        },
+        {
+          "name": "content",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "created_at",
+          "ordinal": 2,
+          "type_info": "Timestamptz"
+        },
+        {
+          "name": "ip_address",
+          "ordinal": 3,
+          "type_info": "Text"
+        },
+        {
+          "name": "user_agent",
+          "ordinal": 4,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        true,
+        true
+      ],
+      "parameters": {
+        "Left": [
+          "Uuid"
+        ]
+      }
+    },
+    "query": "\n        SELECT id, content, created_at, ip_address, user_agent\n        FROM posts\n        WHERE id = $1\n        "
+  },
+  "e534f79b6b8b1f1cec4ccb0a2af4dbb84e00f4c25abf6ce465eded7c4e7a8776": {
+    "describe": {
+      "columns": [
+        {
+          "name": "count",
+          "ordinal": 0,
+          "type_info": "Int8"
+        }
+      ],
+      "nullable": [
+        null
+      ],
+      "parameters": {
+        "Left": []
+      }
+    },
+    "query": "SELECT COUNT(*) FROM posts"
+  },
+  "8cbbba0a3a5de4c15cb65de4dd8faffcdf62ced80a82f6c3a43d3ca72a48af84": {
+    "describe": {
+      "columns": [
+        {
+          "name": "count",
+          "ordinal": 0,
+          "type_info": "Int8"
+        }
+      ],
+      "nullable": [
+        null
+      ],
+      "parameters": {
+        "Left": [
+          "Uuid"
+        ]
+      }
+    },
+    "query": "SELECT COUNT(*) FROM comments WHERE post_id = $1"
+  },
+  "af764e1ed0de65e0ee14d1ac9cb2c91f86c09ced42c42b67fecca9d3a3fb69f0": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Uuid"
+        },
+        {
+          "name": "content",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "created_at",
+          "ordinal": 2,
+          "type_info": "Timestamptz"
+        },
+        {
+          "name": "comments_count",
+          "ordinal": 3,
+          "type_info": "Int8"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        null
+      ],
+      "parameters": {
+        "Left": [
+          "Int8",
+          "Int8"
+        ]
+      }
+    },
+    "query": "\n        SELECT \n            p.id,\n            p.content,\n            p.created_at,\n            COUNT(c.id) AS \"comments_count!: i64\"\n        FROM \n            posts p\n        LEFT JOIN \n            comments c ON p.id = c.post_id\n        GROUP BY \n            p.id\n        ORDER BY \n            p.created_at DESC\n        LIMIT $1 OFFSET $2\n        "
+  }
+}
