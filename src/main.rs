@@ -25,7 +25,9 @@ async fn main() -> anyhow::Result<()> {
 
     // 初始化日志
     tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()))
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()),
+        )
         .with(tracing_subscriber::fmt::layer())
         .init();
 
@@ -44,7 +46,7 @@ async fn main() -> anyhow::Result<()> {
         .allow_methods([Method::GET, Method::POST, Method::DELETE])
         .allow_headers([header::CONTENT_TYPE])
         .allow_origin(Any);
-    
+
     // API 路由
     let api_routes = Router::new()
         .route("/posts", get(routes::post::get_posts))
@@ -75,3 +77,4 @@ async fn main() -> anyhow::Result<()> {
 
     Ok(())
 }
+
