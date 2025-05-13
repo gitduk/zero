@@ -129,10 +129,11 @@
         
         /* 可折叠卡片样式 */
         .card-content-collapsible {
-            max-height: 300px; /* 初始最大高度 */
+            max-height: 400px; /* 初始最大高度 */
             overflow: hidden;
             position: relative;
             transition: max-height 0.3s ease;
+            padding-bottom: 35px; /* 为按钮留出空间 */
         }
         
         .card-content-expanded {
@@ -144,24 +145,34 @@
             bottom: 0;
             left: 0;
             right: 0;
-            height: 80px;
-            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,1));
+            height: 50px;
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0.9), rgba(255,255,255,1));
             pointer-events: none;
             display: block;
         }
         
         .content-expand-btn {
             position: absolute;
-            bottom: 0;
+            bottom: 5px;
             left: 50%;
             transform: translateX(-50%);
             z-index: 5;
             background-color: white;
-            border: 1px solid #dee2e6;
-            border-radius: 15px;
-            padding: 2px 10px;
+            border: none;
             cursor: pointer;
-            font-size: 0.8rem;
+            font-size: 13px;
+            color: #fff;
+            padding: 3px 12px;
+            border-radius: 3px;
+            border: none;
+            font-weight: 500;
+            background-color: #778087;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+        }
+        
+        .content-expand-btn:hover {
+            color: #fff;
+            background-color: #4d5256;
         }
         
         /* 自动调整大小的文本区域 */
@@ -418,18 +429,31 @@
                     const expandBtn = document.createElement('button');
                     expandBtn.className = 'content-expand-btn';
                     expandBtn.textContent = '展开';
+                    expandBtn.title = "展开内容";
                     wrapper.appendChild(expandBtn);
                     
                     // 绑定展开/折叠事件
-                    expandBtn.addEventListener('click', function() {
+                    expandBtn.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
                         wrapper.classList.toggle('card-content-expanded');
                         if (wrapper.classList.contains('card-content-expanded')) {
                             expandBtn.textContent = '收起';
+                            expandBtn.title = "收起内容";
                             overlay.style.display = 'none';
+                            expandBtn.style.bottom = '5px';
+                            expandBtn.style.backgroundColor = '#666';
                         } else {
                             expandBtn.textContent = '展开';
+                            expandBtn.title = "展开内容";
                             overlay.style.display = 'block';
+                            expandBtn.style.bottom = '5px';
+                            expandBtn.style.backgroundColor = '#778087';
+                            expandBtn.style.boxShadow = '0 1px 2px rgba(0,0,0,0.15)';
                         }
+                        
+                        return false;
                     });
                 }
                 
