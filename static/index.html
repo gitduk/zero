@@ -227,6 +227,8 @@
             const apiBaseUrl = '/api';
             let currentPage = 1;
             let totalPages = 1;
+            // 创建评论缓存对象
+            const commentsCache = {};
             
             // 设置自动调整大小的文本区域
             function setupAutoResizeTextareas() {
@@ -395,10 +397,8 @@
                     
                     if (!commentSection.classList.contains('d-none')) {
                         loadComments(post.id, commentSection);
-                    } else {
-                        // 如果隐藏评论区，清空已加载的评论内容，下次打开时重新加载
-                        commentSection.querySelector('.comments-list').innerHTML = '';
                     }
+                    // 不再清空评论内容，保留DOM以减少重排重绘
                 });
                 
                 // 绑定提交评论事件
@@ -430,6 +430,14 @@
                 const commentsList = commentSection.querySelector('.comments-list');
                 commentsList.innerHTML = '<div class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div></div>';
                 
+                // 检查缓存中是否已有此帖子的评论数据
+                if (commentsCache[postId]) {
+                    console.log(`Using cached comments for post ${postId}`);
+                    renderComments(commentsCache[postId], commentsList);
+                    return;
+                }
+                
+                // 如果缓存中没有数据，则从服务器获取
                 fetch(`${apiBaseUrl}/posts/${postId}/comments`)
                     .then(response => {
                         if (!response.ok) {
@@ -438,22 +446,29 @@
                         return response.json();
                     })
                     .then(data => {
-                        commentsList.innerHTML = '';
-                        
-                        if (!data.comments || data.comments.length === 0) {
-                            commentsList.innerHTML = '<div class="text-center text-muted">暂无评论</div>';
-                            return;
-                        }
-                        
-                        data.comments.forEach(comment => {
-                            const commentElement = createCommentElement(comment);
-                            commentsList.appendChild(commentElement);
-                        });
+                        // 将获取的数据存入缓存
+                        commentsCache[postId] = data;
+                        renderComments(data, commentsList);
                     })
                     .catch(error => {
                         console.error('Error loading comments:', error);
                         commentsList.innerHTML = '<div class="alert alert-danger">加载评论失败</div>';
                     });
+            }
+            
+            // 渲染评论列表
+            function renderComments(data, commentsList) {
+                commentsList.innerHTML = '';
+                
+                if (!data.comments || data.comments.length === 0) {
+                    commentsList.innerHTML = '<div class="text-center text-muted">暂无评论</div>';
+                    return;
+                }
+                
+                data.comments.forEach(comment => {
+                    const commentElement = createCommentElement(comment);
+                    commentsList.appendChild(commentElement);
+                });
             }
             
             // 创建评论元素
@@ -534,6 +549,14 @@
                     
                     const commentElement = createCommentElement(comment);
                     commentsList.appendChild(commentElement);
+                    
+                    // 更新缓存中的评论数据
+                    if (commentsCache[postId]) {
+                        if (!commentsCache[postId].comments) {
+                            commentsCache[postId].comments = [];
+                        }
+                        commentsCache[postId].comments.push(comment);
+                    }
                     
                     // 更新评论计数
                     const countElement = postElement.querySelector('.comments-count');
@@ -690,6 +713,17 @@
             }
             
 
+            
+            // 清除评论缓存函数
+            function clearCommentsCache(postId) {
+                if (postId) {
+                    // 清除特定帖子的评论缓存
+                    delete commentsCache[postId];
+                } else {
+                    // 清除所有评论缓存
+                    Object.keys(commentsCache).forEach(key => delete commentsCache[key]);
+                }
+            }
             
             // 初始加载第一页
             loadPosts();
