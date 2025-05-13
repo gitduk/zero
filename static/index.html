@@ -36,6 +36,7 @@
             padding: 10px 15px;
             border-radius: 3px;
         }
+        /* 按钮样式优化 */
         .btn-primary, .btn-secondary {
             background-color: #778087;
             border-color: #778087;
@@ -56,6 +57,52 @@
             background-color: #778087;
             border-color: #778087;
             color: #fff;
+        }
+        /* 分页按钮样式 */
+        .pagination {
+            margin-top: 20px;
+            display: flex;
+            padding-left: 0;
+            list-style: none;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .pagination .page-item {
+            margin: 0 3px;
+            margin-bottom: 6px;
+        }
+        .pagination .page-link {
+            color: #778087;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            padding: 6px 12px;
+            font-size: 14px;
+            min-width: 36px;
+            text-align: center;
+            border-radius: 3px !important;
+            text-decoration: none;
+            display: block;
+        }
+        .pagination .page-item.active .page-link {
+            background-color: #778087;
+            border-color: #778087;
+            color: #fff;
+        }
+        .pagination .page-item.disabled .page-link {
+            color: #ccc;
+            pointer-events: none;
+            cursor: default;
+        }
+        .pagination .page-link:hover:not(.active) {
+            background-color: #f0f0f0;
+            color: #4d5256;
+            border-color: #ddd;
+        }
+        .pagination .page-item:first-child .page-link,
+        .pagination .page-item:last-child .page-link {
+            color: #778087;
+            padding: 6px 12px;
+            white-space: nowrap;
         }
         .text-container {
             white-space: pre-wrap;
@@ -622,7 +669,8 @@
                 const prevLink = document.createElement('a');
                 prevLink.className = 'page-link';
                 prevLink.href = '#';
-                prevLink.textContent = '← 上一页';
+                prevLink.textContent = '«';
+                // 样式由CSS控制
                 prevItem.appendChild(prevLink);
                 pagination.appendChild(prevItem);
                 
@@ -656,6 +704,7 @@
                     pageLink.className = 'page-link';
                     pageLink.href = '#';
                     pageLink.textContent = i;
+                    // 样式由CSS控制
                     pageItem.appendChild(pageLink);
                     pagination.appendChild(pageItem);
                     
@@ -673,7 +722,8 @@
                 const nextLink = document.createElement('a');
                 nextLink.className = 'page-link';
                 nextLink.href = '#';
-                nextLink.textContent = '下一页 →';
+                nextLink.textContent = '»';
+                // 样式由CSS控制
                 nextItem.appendChild(nextLink);
                 pagination.appendChild(nextItem);
                 
