@@ -8,6 +8,7 @@ use uuid::Uuid;
 
 use crate::models::post::{CreatePostRequest, Post, PostListResponse, PostSummary};
 use crate::utils::pagination::PaginationParams;
+use crate::utils::sanitize::sanitize_content;
 
 // 获取帖子列表
 pub async fn get_posts(
@@ -87,6 +88,9 @@ pub async fn create_post(
         .and_then(|v| v.to_str().ok())
         .map(ToString::to_string);
 
+    // 转义内容以便安全显示，但保留原始格式
+    let sanitized_content = sanitize_content(&request.content);
+    
     // 创建新帖子
     let post = sqlx::query_as!(
         Post,
@@ -95,7 +99,7 @@ pub async fn create_post(
         VALUES ($1, $2, $3)
         RETURNING id, content, created_at, ip_address, user_agent
         "#,
-        request.content,
+        sanitized_content,
         ip_address,
         user_agent
     )

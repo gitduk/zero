@@ -8,6 +8,7 @@ use uuid::Uuid;
 
 use crate::models::comment::{Comment, CommentListResponse, CreateCommentRequest};
 use crate::utils::pagination::PaginationParams;
+use crate::utils::sanitize::sanitize_content;
 
 // 获取帖子下的评论列表
 pub async fn get_comments(
@@ -122,6 +123,9 @@ pub async fn create_comment(
         .and_then(|v| v.to_str().ok())
         .map(ToString::to_string);
 
+    // 转义内容以便安全显示，但保留原始格式
+    let sanitized_content = sanitize_content(&request.content);
+    
     // 创建新评论
     let comment = sqlx::query_as!(
         Comment,
@@ -131,7 +135,7 @@ pub async fn create_comment(
         RETURNING id, post_id, content, created_at, ip_address, user_agent
         "#,
         post_id,
-        request.content,
+        sanitized_content,
         ip_address,
         user_agent
     )
