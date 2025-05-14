@@ -7,6 +7,7 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::models::comment::{Comment, CommentListResponse, CreateCommentRequest};
+use crate::utils::filter::filter_sensitive_words;
 use crate::utils::pagination::PaginationParams;
 use crate::utils::sanitize::sanitize_content;
 
@@ -21,38 +22,33 @@ pub async fn get_comments(
     let offset = (page - 1) * page_size;
 
     // 检查帖子是否存在
-    let post_exists = sqlx::query_scalar!(
-        "SELECT EXISTS(SELECT 1 FROM posts WHERE id = $1)",
-        post_id
-    )
-    .fetch_one(&pool)
-    .await
-    .map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to check post existence: {}", e),
-        )
-    })?
-    .unwrap_or(false);
+    let post_exists =
+        sqlx::query_scalar!("SELECT EXISTS(SELECT 1 FROM posts WHERE id = $1)", post_id)
+            .fetch_one(&pool)
+            .await
+            .map_err(|e| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Failed to check post existence: {}", e),
+                )
+            })?
+            .unwrap_or(false);
 
     if !post_exists {
         return Err((StatusCode::NOT_FOUND, "Post not found".to_string()));
     }
 
     // 获取评论总数
-    let total = sqlx::query_scalar!(
-        "SELECT COUNT(*) FROM comments WHERE post_id = $1",
-        post_id
-    )
-    .fetch_one(&pool)
-    .await
-    .map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to count comments: {}", e),
-        )
-    })?
-    .unwrap_or(0);
+    let total = sqlx::query_scalar!("SELECT COUNT(*) FROM comments WHERE post_id = $1", post_id)
+        .fetch_one(&pool)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to count comments: {}", e),
+            )
+        })?
+        .unwrap_or(0);
 
     // 获取评论列表
     let comments = sqlx::query_as!(
@@ -93,19 +89,17 @@ pub async fn create_comment(
     Json(request): Json<CreateCommentRequest>,
 ) -> Result<Json<Comment>, (StatusCode, String)> {
     // 检查帖子是否存在
-    let post_exists = sqlx::query_scalar!(
-        "SELECT EXISTS(SELECT 1 FROM posts WHERE id = $1)",
-        post_id
-    )
-    .fetch_one(&pool)
-    .await
-    .map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to check post existence: {}", e),
-        )
-    })?
-    .unwrap_or(false);
+    let post_exists =
+        sqlx::query_scalar!("SELECT EXISTS(SELECT 1 FROM posts WHERE id = $1)", post_id)
+            .fetch_one(&pool)
+            .await
+            .map_err(|e| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Failed to check post existence: {}", e),
+                )
+            })?
+            .unwrap_or(false);
 
     if !post_exists {
         return Err((StatusCode::NOT_FOUND, "Post not found".to_string()));
@@ -123,9 +117,12 @@ pub async fn create_comment(
         .and_then(|v| v.to_str().ok())
         .map(ToString::to_string);
 
+    // 首先过滤敏感词
+    let filtered_content = filter_sensitive_words(&request.content);
+
     // 转义内容以便安全显示，但保留原始格式
-    let sanitized_content = sanitize_content(&request.content);
-    
+    let sanitized_content = sanitize_content(&filtered_content);
+
     // 创建新评论
     let comment = sqlx::query_as!(
         Comment,
@@ -150,3 +147,4 @@ pub async fn create_comment(
 
     Ok(Json(comment))
 }
+

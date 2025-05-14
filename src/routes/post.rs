@@ -7,6 +7,7 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::models::post::{CreatePostRequest, Post, PostListResponse, PostSummary};
+use crate::utils::filter::filter_sensitive_words;
 use crate::utils::pagination::PaginationParams;
 use crate::utils::sanitize::sanitize_content;
 
@@ -88,9 +89,12 @@ pub async fn create_post(
         .and_then(|v| v.to_str().ok())
         .map(ToString::to_string);
 
+    // 首先过滤敏感词
+    let filtered_content = filter_sensitive_words(&request.content);
+
     // 转义内容以便安全显示，但保留原始格式
-    let sanitized_content = sanitize_content(&request.content);
-    
+    let sanitized_content = sanitize_content(&filtered_content);
+
     // 创建新帖子
     let post = sqlx::query_as!(
         Post,
@@ -143,3 +147,4 @@ pub async fn get_post(
         None => Err((StatusCode::NOT_FOUND, "Post not found".to_string())),
     }
 }
+

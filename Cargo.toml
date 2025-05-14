@@ -29,3 +29,5 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 anyhow = "1.0"
 thiserror = "1.0"
+lazy_static = "1.4.0"
+tempfile = "3.8.0"

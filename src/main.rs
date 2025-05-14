@@ -12,6 +12,7 @@ use std::env;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::ServeDir;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use crate::utils::filter::reload_sensitive_words;
 
 mod models;
 mod routes;
@@ -41,6 +42,12 @@ async fn main() -> anyhow::Result<()> {
     // 运行数据库迁移
     sqlx::migrate!("./migrations").run(&pool).await?;
 
+    // 加载敏感词列表
+    match reload_sensitive_words() {
+        Ok(count) => tracing::info!("成功加载敏感词列表，共 {} 个词", count),
+        Err(err) => tracing::warn!("无法加载敏感词列表: {}", err),
+    }
+
     // 配置 CORS
     let cors = CorsLayer::new()
         .allow_methods([Method::GET, Method::POST, Method::DELETE])
@@ -54,6 +61,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/posts/:id", get(routes::post::get_post))
         .route("/posts/:id/comments", get(routes::comment::get_comments))
         .route("/posts/:id/comments", post(routes::comment::create_comment))
+        .nest("/filter", routes::filter::filter_routes())
         .layer(Extension(pool.clone()))
         .layer(cors.clone());
 
