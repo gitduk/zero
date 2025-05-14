@@ -6,6 +6,7 @@
     <title>树洞 - 匿名分享你的想法</title>
     <link rel="icon" href="/favicon.ico" type="image/x-icon">
     <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" as="style">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <style>
         body {
@@ -192,13 +193,46 @@
             // 设置新高度
             textarea.style.height = textarea.scrollHeight + 'px';
         }
-        
+            
         // 处理Ctrl+Enter快捷键
         function handleCtrlEnter(event, callback) {
             if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
                 event.preventDefault();
                 callback();
             }
+        }
+            
+        // 设置Ctrl+Enter快捷键
+        function setupCtrlEnterShortcuts() {
+            // 为主发帖框设置快捷键
+            const postTextarea = document.getElementById('new-post-content');
+            const submitPostBtn = document.getElementById('submit-post');
+                
+            if (postTextarea && submitPostBtn) {
+                postTextarea.addEventListener('keydown', function(event) {
+                    handleCtrlEnter(event, function() {
+                        if (postTextarea.value.trim()) {
+                            submitPostBtn.click();
+                        }
+                    });
+                });
+            }
+                
+            // 给页面上已存在的评论框添加快捷键
+            document.querySelectorAll('.new-comment-content').forEach(textarea => {
+                const formGroup = textarea.closest('.comment-form');
+                const submitBtn = formGroup ? formGroup.querySelector('.submit-comment') : null;
+                    
+                if (submitBtn) {
+                    textarea.addEventListener('keydown', function(event) {
+                        handleCtrlEnter(event, function() {
+                            if (textarea.value.trim()) {
+                                submitBtn.click();
+                            }
+                        });
+                    });
+                }
+            });
         }
     </script>
 </head>
@@ -218,7 +252,7 @@
                         <div class="mb-3">
                             <textarea id="new-post-content" class="form-control auto-resize" rows="4" placeholder="在这里分享你的想法..." style="border-radius: 3px;"></textarea>
                         </div>
-                        <button id="submit-post" class="btn btn-secondary float-end" style="padding: 4px 12px; font-size: 14px; border-radius: 3px;">发布</button>
+                        <button id="submit-post" class="btn btn-secondary float-end" style="padding: 4px 12px; font-size: 14px; border-radius: 3px; min-width: 80px;">发布 Ctrl+Enter</button>
                     </div>
                 </div>
             </div>
@@ -263,7 +297,7 @@
                     <div class="comment-form">
                         <textarea class="form-control new-comment-content auto-resize" placeholder="添加评论..." style="border-radius: 3px;"></textarea>
                         <div class="text-end mt-2">
-                            <button class="btn btn-outline-secondary submit-comment" style="padding: 4px 12px; font-size: 14px; border-radius: 3px;">回复</button>
+                            <button class="btn btn-outline-secondary submit-comment" style="padding: 4px 12px; font-size: 14px; border-radius: 3px; min-width: 80px;">回复 Ctrl+Enter</button>
                         </div>
                     </div>
                 </div>
@@ -279,6 +313,7 @@
         </div>
     </template>
 
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" as="script">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -333,6 +368,7 @@
             
             // 初始设置
             setupAutoResizeTextareas();
+            setupCtrlEnterShortcuts();
             
             // 监听文档变化，为动态添加的元素设置自动调整大小
             const observer = new MutationObserver(function(mutations) {
@@ -349,18 +385,19 @@
                                         });
                                         
                                         // 为动态添加的评论框添加Ctrl+Enter快捷键
-                                        if (textarea.classList.contains('new-comment-content')) {
-                                            const submitBtn = textarea.closest('.input-group').querySelector('.submit-comment');
-                                            if (submitBtn) {
-                                                textarea.addEventListener('keydown', function(event) {
-                                                    handleCtrlEnter(event, function() {
-                                                        if (textarea.value.trim()) {
-                                                            submitBtn.click();
+                                                        if (textarea.classList.contains('new-comment-content')) {
+                                                            const formGroup = textarea.closest('.comment-form');
+                                                            const submitBtn = formGroup ? formGroup.querySelector('.submit-comment') : null;
+                                                            if (submitBtn) {
+                                                                textarea.addEventListener('keydown', function(event) {
+                                                                    handleCtrlEnter(event, function() {
+                                                                        if (textarea.value.trim()) {
+                                                                            submitBtn.click();
+                                                                        }
+                                                                    });
+                                                                });
+                                                            }
                                                         }
-                                                    });
-                                                });
-                                            }
-                                        }
                                     });
                                 }
                             }
@@ -372,139 +409,247 @@
             // 配置观察器
             observer.observe(document.body, { childList: true, subtree: true });
             
-            // 加载帖子列表
-            function loadPosts(page = 1) {
+            // 加载帖子列表 - 优化DOM操作
+            function loadPosts(page = 1, retryCount = 0) {
+                // 设置当前页，用于后续判断
+                currentPage = page;
+                
+                // 最大重试次数
+                const MAX_RETRIES = 3;
+                
+                const postsContainer = document.getElementById('posts-container');
+                
+                // 显示加载指示器
+                if (retryCount === 0) { // 只在首次尝试时显示加载指示器
+                    postsContainer.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">加载中...</span></div></div>';
+                }
+                
                 fetch(`${apiBaseUrl}/posts?page=${page}&per_page=10`)
-                    .then(response => response.json())
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! Status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
                     .then(data => {
-                        const postsContainer = document.getElementById('posts-container');
-                        postsContainer.innerHTML = '';
+                        // 使用DocumentFragment减少DOM重排
+                        const fragment = document.createDocumentFragment();
                         
-                        if (data.posts.length === 0) {
-                            postsContainer.innerHTML = '<div class="text-center">还没有帖子，来发布第一个吧！</div>';
-                            return;
+                        if (!data.posts || data.posts.length === 0) {
+                            const emptyDiv = document.createElement('div');
+                            emptyDiv.className = 'text-center';
+                            emptyDiv.textContent = '还没有帖子，来发布第一个吧！';
+                            fragment.appendChild(emptyDiv);
+                        } else {
+                            // 批量创建帖子元素
+                            data.posts.forEach(post => {
+                                try {
+                                    const postElement = createPostElement(post);
+                                    fragment.appendChild(postElement);
+                                } catch (err) {
+                                    console.error(`Error creating post element for post ${post.id}:`, err);
+                                    // 继续处理其他帖子
+                                }
+                            });
                         }
                         
-                        data.posts.forEach(post => {
-                            const postElement = createPostElement(post);
-                            postsContainer.appendChild(postElement);
-                        });
+                        // 一次性更新DOM
+                        postsContainer.innerHTML = '';
+                        postsContainer.appendChild(fragment);
                         
                         totalPages = Math.ceil(data.total / data.page_size);
                         updatePagination(data.page, totalPages);
                     })
                     .catch(error => {
                         console.error('Error loading posts:', error);
-                        document.getElementById('posts-container').innerHTML = 
-                            '<div class="alert alert-danger">加载帖子失败，请刷新页面重试。</div>';
+                        
+                        // 重试逻辑
+                        if (retryCount < MAX_RETRIES) {
+                            console.log(`Retrying loadPosts (${retryCount + 1}/${MAX_RETRIES})...`);
+                            // 延迟重试，每次增加延迟
+                            setTimeout(() => {
+                                loadPosts(page, retryCount + 1);
+                            }, 1000 * (retryCount + 1)); // 1秒, 2秒, 3秒...
+                        } else {
+                            // 达到最大重试次数，显示错误
+                            postsContainer.innerHTML = `
+                                <div class="alert alert-danger">
+                                    <p>加载帖子失败，请刷新页面重试。</p>
+                                    <button class="btn btn-sm btn-outline-danger mt-2" onclick="loadPosts(${page})">
+                                        <i class="bi bi-arrow-clockwise"></i> 重新加载
+                                    </button>
+                                </div>`;
+                        }
                     });
             }
             
-            // 创建帖子元素
+            // 创建帖子元素 - 优化DOM操作和事件绑定
             function createPostElement(post) {
-                const template = document.getElementById('post-template');
-                const postElement = document.importNode(template.content, true).querySelector('.post-card');
+                try {
+                    if (!post || !post.id || !post.content) {
+                        console.error('Invalid post data:', post);
+                        throw new Error('Invalid post data');
+                    }
+                    
+                    const template = document.getElementById('post-template');
+                    const postElement = document.importNode(template.content, true).querySelector('.post-card');
+                    
+                    postElement.dataset.postId = post.id;
+                    
+                    // 创建内容容器，添加可折叠功能
+                    const contentContainer = postElement.querySelector('.post-content');
+                    
+                    // 通过innerHTML一次设置内容，避免多次DOM操作
+                    // 设置textContent以避免XSS风险（内容已经在服务器端清理过）
+                    contentContainer.textContent = post.content || '';
                 
-                postElement.dataset.postId = post.id;
-                
-                // 创建内容容器，添加可折叠功能
-                const contentContainer = postElement.querySelector('.post-content');
-                contentContainer.textContent = post.content;
-                
-                // 检查内容长度，添加折叠/展开功能
-                if (post.content.length > 200) {
+                // 懒处理长文本内容，减少初始渲染负担
+                if (post.content && post.content.length > 200) {
+                    // 创建所有元素的包装器
                     const wrapper = document.createElement('div');
                     wrapper.className = 'card-content-collapsible';
                     
+                    // 一次性创建所有折叠相关的元素
+                    wrapper.innerHTML = `
+                        <div class="content-overlay"></div>
+                        <button class="content-expand-btn" title="展开内容">展开</button>
+                    `;
+                    
                     // 将文本容器移动到包装器中
                     contentContainer.parentNode.insertBefore(wrapper, contentContainer);
-                    wrapper.appendChild(contentContainer);
+                    wrapper.insertBefore(contentContainer, wrapper.firstChild);
                     
-                    // 添加渐变遮罩
-                    const overlay = document.createElement('div');
-                    overlay.className = 'content-overlay';
-                    wrapper.appendChild(overlay);
+                    const overlay = wrapper.querySelector('.content-overlay');
+                    const expandBtn = wrapper.querySelector('.content-expand-btn');
                     
-                    // 添加展开按钮
-                    const expandBtn = document.createElement('button');
-                    expandBtn.className = 'content-expand-btn';
-                    expandBtn.textContent = '展开';
-                    expandBtn.title = "展开内容";
-                    wrapper.appendChild(expandBtn);
-                    
-                    // 绑定展开/折叠事件
+                    // 使用事件委托，减少事件监听器数量
                     expandBtn.addEventListener('click', function(e) {
                         e.preventDefault();
                         e.stopPropagation();
                         
-                        wrapper.classList.toggle('card-content-expanded');
-                        if (wrapper.classList.contains('card-content-expanded')) {
+                        // 使用classList.toggle减少条件判断
+                        const isExpanded = wrapper.classList.toggle('card-content-expanded');
+                        
+                        // 批量更新样式，减少重绘
+                        if (isExpanded) {
                             expandBtn.textContent = '收起';
                             expandBtn.title = "收起内容";
                             overlay.style.display = 'none';
-                            expandBtn.style.bottom = '5px';
-                            expandBtn.style.backgroundColor = '#666';
+                            Object.assign(expandBtn.style, {
+                                bottom: '5px',
+                                backgroundColor: '#666'
+                            });
                         } else {
                             expandBtn.textContent = '展开';
                             expandBtn.title = "展开内容";
                             overlay.style.display = 'block';
-                            expandBtn.style.bottom = '5px';
-                            expandBtn.style.backgroundColor = '#778087';
-                            expandBtn.style.boxShadow = '0 1px 2px rgba(0,0,0,0.15)';
+                            Object.assign(expandBtn.style, {
+                                bottom: '5px',
+                                backgroundColor: '#778087',
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.15)'
+                            });
                         }
                         
                         return false;
                     });
                 }
                 
+                // 批量更新静态内容
                 postElement.querySelector('.post-time').textContent = formatDate(post.created_at);
                 postElement.querySelector('.comments-count').textContent = post.comments_count;
                 
-                // 绑定显示评论事件
+                // 绑定显示评论事件 - 优化切换逻辑
                 const showCommentsBtn = postElement.querySelector('.show-comments');
+                const commentSection = postElement.querySelector('.comment-section');
+                
+                // 预先设置ID属性，便于后续查找
+                commentSection.id = `comments-${post.id}`;
+                
                 showCommentsBtn.addEventListener('click', function() {
-                    const commentSection = this.closest('.card').querySelector('.comment-section');
-                    commentSection.classList.toggle('d-none');
+                    // 使用classList.toggle获取切换后的状态
+                    const isVisible = !commentSection.classList.toggle('d-none');
                     
-                    if (!commentSection.classList.contains('d-none')) {
+                    if (isVisible) {
+                        // 懒加载评论，只在需要时加载
                         loadComments(post.id, commentSection);
                     }
-                    // 不再清空评论内容，保留DOM以减少重排重绘
                 });
                 
-                // 绑定提交评论事件
+                // 绑定提交评论事件 - 优化事件处理
                 const submitCommentBtn = postElement.querySelector('.submit-comment');
                 const commentTextarea = postElement.querySelector('.new-comment-content');
                 
-                submitCommentBtn.addEventListener('click', function() {
+                // 统一提交评论的函数，避免重复代码
+                const submitCommentIfValid = () => {
                     const content = commentTextarea.value.trim();
                     if (content) {
+                        submitCommentBtn.disabled = true;
+                        submitCommentBtn.textContent = '提交中...';
                         submitComment(post.id, content, postElement);
                     }
-                });
+                };
+                
+                submitCommentBtn.addEventListener('click', submitCommentIfValid);
                 
                 // 为评论框添加Ctrl+Enter快捷键
                 commentTextarea.addEventListener('keydown', function(event) {
-                    handleCtrlEnter(event, function() {
-                        const content = commentTextarea.value.trim();
-                        if (content) {
-                            submitComment(post.id, content, postElement);
-                        }
-                    });
+                    handleCtrlEnter(event, submitCommentIfValid);
                 });
                 
-                return postElement;
+                    // 确保comments_count是有效的数字
+                    const commentsCount = post.comments_count || 0;
+                    postElement.querySelector('.comments-count').textContent = commentsCount;
+                    
+                    // 确保created_at是有效的日期字符串
+                    try {
+                        postElement.querySelector('.post-time').textContent = post.created_at ? formatDate(post.created_at) : '未知时间';
+                    } catch (e) {
+                        console.error('Error formatting date:', e);
+                        postElement.querySelector('.post-time').textContent = '未知时间';
+                    }
+                    
+                    return postElement;
+                } catch (err) {
+                    console.error('Error creating post element:', err);
+                    // 创建一个错误占位帖子
+                    const errorPost = document.createElement('div');
+                    errorPost.className = 'card post-card';
+                    errorPost.innerHTML = `
+                        <div class="card-body">
+                            <div class="alert alert-warning mb-0">无法显示此帖子 (加载错误)</div>
+                        </div>
+                    `;
+                    return errorPost;
+                }
             }
             
-            // 加载评论
-            function loadComments(postId, commentSection) {
+            // 加载评论 - 优化缓存和DOM操作
+            function loadComments(postId, commentSection, retryCount = 0) {
                 const commentsList = commentSection.querySelector('.comments-list');
-                commentsList.innerHTML = '<div class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div></div>';
+                
+                // 最大重试次数
+                const MAX_RETRIES = 3;
+                
+                // 检查是否已经加载过（通过data属性标记）
+                if (commentSection.dataset.loaded === 'true') {
+                    // 已加载过，不需要再次加载
+                    return;
+                }
+                
+                // 只在第一次尝试时显示加载指示器
+                if (retryCount === 0) {
+                    const loadingIndicator = document.createElement('div');
+                    loadingIndicator.className = 'text-center';
+                    loadingIndicator.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div>';
+                    commentsList.innerHTML = '';
+                    commentsList.appendChild(loadingIndicator);
+                }
                 
                 // 检查缓存中是否已有此帖子的评论数据
                 if (commentsCache[postId]) {
                     console.log(`Using cached comments for post ${postId}`);
                     renderComments(commentsCache[postId], commentsList);
+                    commentSection.dataset.loaded = 'true';
                     return;
                 }
                 
@@ -520,38 +665,72 @@
                         // 将获取的数据存入缓存
                         commentsCache[postId] = data;
                         renderComments(data, commentsList);
+                        // 标记为已加载
+                        commentSection.dataset.loaded = 'true';
                     })
                     .catch(error => {
                         console.error('Error loading comments:', error);
-                        commentsList.innerHTML = '<div class="alert alert-danger">加载评论失败</div>';
+                        
+                        // 重试逻辑
+                        if (retryCount < MAX_RETRIES) {
+                            console.log(`Retrying loadComments for post ${postId} (${retryCount + 1}/${MAX_RETRIES})...`);
+                            // 延迟重试，每次增加延迟
+                            setTimeout(() => {
+                                loadComments(postId, commentSection, retryCount + 1);
+                            }, 1000 * (retryCount + 1)); // 1秒, 2秒, 3秒...
+                        } else {
+                            // 达到最大重试次数，显示错误与重试按钮
+                            commentsList.innerHTML = `
+                                <div class="alert alert-danger">
+                                    <p>加载评论失败</p>
+                                    <button class="btn btn-sm btn-outline-danger mt-2" 
+                                            onclick="loadComments('${postId}', document.querySelector('[data-post-id=\\'${postId}\\']').querySelector('.comment-section'))">
+                                        重新加载
+                                    </button>
+                                </div>`;
+                        }
                     });
             }
             
-            // 渲染评论列表
+            // 渲染评论列表 - 优化DOM操作
             function renderComments(data, commentsList) {
-                commentsList.innerHTML = '';
+                // 使用DocumentFragment批量操作DOM
+                const fragment = document.createDocumentFragment();
                 
                 if (!data.comments || data.comments.length === 0) {
-                    commentsList.innerHTML = '<div class="text-center text-muted">暂无评论</div>';
-                    return;
+                    const emptyDiv = document.createElement('div');
+                    emptyDiv.className = 'text-center text-muted';
+                    emptyDiv.textContent = '暂无评论';
+                    fragment.appendChild(emptyDiv);
+                } else {
+                    // 批量创建评论元素
+                    data.comments.forEach(comment => {
+                        const commentElement = createCommentElement(comment);
+                        fragment.appendChild(commentElement);
+                    });
                 }
                 
-                data.comments.forEach(comment => {
-                    const commentElement = createCommentElement(comment);
-                    commentsList.appendChild(commentElement);
-                });
+                // 一次性更新DOM
+                commentsList.innerHTML = '';
+                commentsList.appendChild(fragment);
             }
             
             // 创建评论元素
             function createCommentElement(comment) {
-                const template = document.getElementById('comment-template');
-                const commentElement = document.importNode(template.content, true).querySelector('.comment');
-                
-                commentElement.dataset.commentId = comment.id;
-                
-                // 创建内容容器，添加可折叠功能
-                const contentContainer = commentElement.querySelector('.comment-content');
-                contentContainer.textContent = comment.content;
+                try {
+                    if (!comment || !comment.id) {
+                        console.error('Invalid comment data:', comment);
+                        throw new Error('Invalid comment data');
+                    }
+                    
+                    const template = document.getElementById('comment-template');
+                    const commentElement = document.importNode(template.content, true).querySelector('.comment');
+                    
+                    commentElement.dataset.commentId = comment.id;
+                    
+                    // 创建内容容器，添加可折叠功能
+                    const contentContainer = commentElement.querySelector('.comment-content');
+                    contentContainer.textContent = comment.content || '';
                 
                 // 检查内容长度，添加折叠/展开功能
                 if (comment.content.length > 150) {
@@ -586,12 +765,25 @@
                     });
                 }
                 
-                commentElement.querySelector('.comment-time').textContent = formatDate(comment.created_at);
+                try {
+                    commentElement.querySelector('.comment-time').textContent = comment.created_at ? formatDate(comment.created_at) : '未知时间';
+                } catch (e) {
+                    console.error('Error formatting comment date:', e);
+                    commentElement.querySelector('.comment-time').textContent = '未知时间';
+                }
                 
                 return commentElement;
+            } catch (err) {
+                console.error('Error creating comment element:', err);
+                // 创建一个错误占位评论
+                const errorComment = document.createElement('div');
+                errorComment.className = 'comment';
+                errorComment.innerHTML = `<div class="alert alert-warning mb-0">无法显示此评论 (加载错误)</div>`;
+                return errorComment;
+            }
             }
             
-            // 提交评论
+            // 提交评论 - 优化错误处理和缓存管理
             function submitComment(postId, content, postElement) {
                 fetch(`${apiBaseUrl}/posts/${postId}/comments`, {
                     method: 'POST',
@@ -611,70 +803,123 @@
                     // 重置评论框高度
                     autoResizeTextarea(commentTextarea);
                     
-                    // 更新评论列表
+                    // 更新评论列表 - 使用DocumentFragment减少DOM操作
                     const commentsList = postElement.querySelector('.comments-list');
                     const emptyMessage = commentsList.querySelector('.text-muted');
+                    
                     if (emptyMessage) {
                         commentsList.innerHTML = '';
                     }
                     
+                    // 创建新评论元素并添加到列表
                     const commentElement = createCommentElement(comment);
                     commentsList.appendChild(commentElement);
                     
-                    // 更新缓存中的评论数据
-                    if (commentsCache[postId]) {
-                        if (!commentsCache[postId].comments) {
-                            commentsCache[postId].comments = [];
-                        }
-                        commentsCache[postId].comments.push(comment);
+                    // 更新缓存中的评论数据 - 优化条件判断
+                    if (!commentsCache[postId]) {
+                        commentsCache[postId] = { comments: [] };
+                    } else if (!commentsCache[postId].comments) {
+                        commentsCache[postId].comments = [];
                     }
+                    
+                    commentsCache[postId].comments.push(comment);
                     
                     // 更新评论计数
                     const countElement = postElement.querySelector('.comments-count');
-                    countElement.textContent = parseInt(countElement.textContent) + 1;
+                    const newCount = parseInt(countElement.textContent) + 1;
+                    countElement.textContent = newCount;
+                    
+                    // 启用按钮
+                    const submitBtn = postElement.querySelector('.submit-comment');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = '回复 Ctrl+Enter';
+                    // 聚焦到当前评论框
+                    commentTextarea.focus();
                 })
                 .catch(error => {
                     console.error('Error submitting comment:', error);
-                    alert('发送评论失败，请重试。');
+                    // 使用更友好的错误提示，避免阻塞alert
+                    const commentForm = postElement.querySelector('.comment-form');
+                    const errorMsg = document.createElement('div');
+                    errorMsg.className = 'alert alert-danger mt-2';
+                    errorMsg.textContent = '发送评论失败，请重试。';
+                    commentForm.appendChild(errorMsg);
+                    
+                    // 3秒后自动移除错误提示
+                    setTimeout(() => errorMsg.remove(), 3000);
+                    
+                    // 启用按钮
+                    const submitBtn = postElement.querySelector('.submit-comment');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = '回复';
                 });
             }
             
-            // 提交新帖子
+            // 提交新帖子 - 优化错误处理和用户体验
             document.getElementById('submit-post').addEventListener('click', function() {
-                const content = document.getElementById('new-post-content').value.trim();
-                if (content) {
-                    const submitBtn = this;
-                    submitBtn.disabled = true;
-                    submitBtn.innerHTML = '发布中...';
+                const textarea = document.getElementById('new-post-content');
+                const content = textarea.value.trim();
+                
+                if (!content) {
+                    // 如果内容为空，给予用户提示而非静默失败
+                    textarea.classList.add('is-invalid');
+                    const feedbackDiv = document.createElement('div');
+                    feedbackDiv.className = 'invalid-feedback';
+                    feedbackDiv.textContent = '请输入内容后再发布';
+                    textarea.parentNode.appendChild(feedbackDiv);
                     
-                    fetch(`${apiBaseUrl}/posts`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ content })
-                    })
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error(`HTTP error! Status: ${response.status}`);
-                        }
-                        return response.json();
-                    })
-                    .then(post => {
-                        // 清空并重置输入框
-                        const textarea = document.getElementById('new-post-content');
-                        textarea.value = '';
-                        autoResizeTextarea(textarea);
-                        // 重新加载第一页
-                        loadPosts(1);
-                    })
-                    .catch(error => {
-                        console.error('Error submitting post:', error);
-                        alert('发布失败，请重试。');
-                    })
-                    .finally(() => {
-                        submitBtn.disabled = false;
-                        submitBtn.innerHTML = '发布 Ctrl+Enter';
-                    });
+                    // 3秒后自动移除提示
+                    setTimeout(() => {
+                        textarea.classList.remove('is-invalid');
+                        feedbackDiv.remove();
+                    }, 3000);
+                    return;
                 }
+                
+                // 清除缓存以确保获取最新数据
+                clearCommentsCache();
+                
+                const submitBtn = this;
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> 发布中...';
+                
+                fetch(`${apiBaseUrl}/posts`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(post => {
+                    // 清空并重置输入框
+                    textarea.value = '';
+                    autoResizeTextarea(textarea);
+                    
+                    // 重新加载第一页
+                    loadPosts(1);
+                })
+                .catch(error => {
+                    console.error('Error submitting post:', error);
+                    
+                    // 使用内联错误提示而非阻塞的alert
+                    const errorMsg = document.createElement('div');
+                    errorMsg.className = 'alert alert-danger';
+                    errorMsg.textContent = '发布失败，请重试。';
+                    textarea.parentNode.insertBefore(errorMsg, textarea);
+                    
+                    // 5秒后自动移除错误提示
+                    setTimeout(() => errorMsg.remove(), 5000);
+                })
+                .finally(() => {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '发布 Ctrl+Enter';
+                    // 自动聚焦到输入框，方便用户继续输入
+                    textarea.focus();
+                });
             });
             
             // 更新分页
@@ -763,26 +1008,42 @@
             
             // 格式化日期 - V2EX风格
             function formatDate(dateString) {
-                const date = new Date(dateString);
-                const now = new Date();
-                const diff = Math.floor((now - date) / 1000); // 相差的秒数
-                
-                if (diff < 60) {
-                    return '刚刚';
-                } else if (diff < 3600) {
-                    return Math.floor(diff / 60) + ' 分钟前';
-                } else if (diff < 86400) {
-                    return Math.floor(diff / 3600) + ' 小时前';
-                } else if (diff < 2592000) {
-                    return Math.floor(diff / 86400) + ' 天前';
-                } else {
-                    // 超过30天显示具体日期 - V2EX风格
-                    const year = date.getFullYear();
-                    const month = date.getMonth() + 1;
-                    const day = date.getDate();
-                    const hour = date.getHours().toString().padStart(2, '0');
-                    const minute = date.getMinutes().toString().padStart(2, '0');
-                    return `${year}-${month}-${day} ${hour}:${minute}`;
+                try {
+                    if (!dateString) {
+                        return '未知时间';
+                    }
+                    
+                    const date = new Date(dateString);
+                    
+                    // 检查日期是否有效
+                    if (isNaN(date.getTime())) {
+                        console.error('Invalid date:', dateString);
+                        return '未知时间';
+                    }
+                    
+                    const now = new Date();
+                    const diff = Math.floor((now - date) / 1000); // 相差的秒数
+                    
+                    if (diff < 60) {
+                        return '刚刚';
+                    } else if (diff < 3600) {
+                        return Math.floor(diff / 60) + ' 分钟前';
+                    } else if (diff < 86400) {
+                        return Math.floor(diff / 3600) + ' 小时前';
+                    } else if (diff < 2592000) {
+                        return Math.floor(diff / 86400) + ' 天前';
+                    } else {
+                        // 超过30天显示具体日期 - V2EX风格
+                        const year = date.getFullYear();
+                        const month = date.getMonth() + 1;
+                        const day = date.getDate();
+                        const hour = date.getHours().toString().padStart(2, '0');
+                        const minute = date.getMinutes().toString().padStart(2, '0');
+                        return `${year}-${month}-${day} ${hour}:${minute}`;
+                    }
+                } catch (e) {
+                    console.error('Error in formatDate:', e);
+                    return '未知时间';
                 }
             }
             

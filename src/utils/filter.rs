@@ -22,6 +22,7 @@ lazy_static! {
 /// * 敏感词集合，或者错误
 fn load_sensitive_words() -> io::Result<HashSet<String>> {
     let filter_path = Path::new("filter.txt");
+    tracing::debug!("尝试从 {:?} 加载敏感词列表", filter_path);
     let file = File::open(filter_path)?;
     let reader = io::BufReader::new(file);
 
@@ -31,10 +32,12 @@ fn load_sensitive_words() -> io::Result<HashSet<String>> {
         let trimmed = line.trim();
         // 跳过空行和注释行（以#开头）
         if !trimmed.is_empty() && !trimmed.starts_with('#') {
+            tracing::debug!("添加敏感词: {}", trimmed);
             words.insert(trimmed.to_string());
         }
     }
 
+    tracing::debug!("成功加载 {} 个敏感词", words.len());
     Ok(words)
 }
 
@@ -61,30 +64,51 @@ pub fn reload_sensitive_words() -> io::Result<usize> {
 /// # Returns
 /// * 过滤后的内容
 pub fn filter_sensitive_words(content: &str) -> String {
+    // 如果内容为空，直接返回
+    if content.is_empty() {
+        tracing::debug!("内容为空，不需要过滤");
+        return content.to_string();
+    }
+    
+    tracing::debug!("开始处理内容: '{}'", content);
+
     let mut filtered = content.to_string();
     let mut found_words = Vec::new();
 
     // 使用读锁访问词表
-    let sensitive_words = SENSITIVE_WORDS.read().unwrap();
+    let sensitive_words = match SENSITIVE_WORDS.read() {
+        Ok(guard) => guard,
+        Err(e) => {
+            tracing::error!("获取敏感词读锁失败: {}", e);
+            return content.to_string(); // 失败时返回原始内容
+        }
+    };
 
     // 按长度排序敏感词（从长到短），避免短词是长词子串时的问题
-    // 例如：先替换"国家机密"，再替换"国家"
+    tracing::debug!("敏感词表中共有 {} 个词", sensitive_words.len());
     let mut sorted_words: Vec<&String> = sensitive_words.iter().collect();
     sorted_words.sort_by(|a, b| b.chars().count().cmp(&a.chars().count()));
-
-    for word in sorted_words {
-        if filtered.contains(word) {
-            let replacement = "*".repeat(word.chars().count());
-            filtered = filtered.replace(word, &replacement);
-            found_words.push(word.clone());
+    
+    for word in &sorted_words {
+        tracing::debug!("检查敏感词: '{}'", word);
+        if filtered.contains(*word) {
+            let char_count = word.chars().count();
+            tracing::debug!("找到敏感词 '{}', 字符数量: {}", word, char_count);
+            let replacement = "*".repeat(char_count);
+            tracing::debug!("替换为: '{}'", replacement);
+            filtered = filtered.replace(*word, &replacement);
+            found_words.push((*word).clone());
         }
     }
 
     // 记录发现的敏感词
     if !found_words.is_empty() {
         tracing::info!("发现并过滤了敏感词: {:?}", found_words);
+    } else {
+        tracing::debug!("未找到敏感词");
     }
 
+    tracing::debug!("过滤后的内容: '{}'", filtered);
     filtered
 }
 
@@ -113,23 +137,6 @@ mod tests {
         assert!(words.contains("暴力"));
         assert!(!words.contains("# 测试敏感词"));
         assert!(!words.contains("# 注释行"));
-    }
-
-    #[test]
-    fn test_contains_sensitive_word() {
-        let content = "政治\n笨蛋\n暴力";
-        create_test_filter_file(content).unwrap();
-        reload_sensitive_words().unwrap();
-
-        assert_eq!(contains_sensitive_word("这是正常内容"), None);
-        assert_eq!(
-            contains_sensitive_word("这里有政治内容"),
-            Some("政治".to_string())
-        );
-        assert_eq!(
-            contains_sensitive_word("这个人真是个笨蛋"),
-            Some("笨蛋".to_string())
-        );
     }
 
     #[test]

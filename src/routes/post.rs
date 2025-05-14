@@ -3,8 +3,9 @@ use axum::{
     http::{HeaderMap, StatusCode},
     Json,
 };
-use sqlx::PgPool;
+use sqlx::{PgPool, Row};
 use uuid::Uuid;
+use time;
 
 use crate::models::post::{CreatePostRequest, Post, PostListResponse, PostSummary};
 use crate::utils::filter::filter_sensitive_words;
@@ -21,47 +22,103 @@ pub async fn get_posts(
     let offset = (page - 1) * page_size;
 
     // 获取帖子总数
-    let total = sqlx::query_scalar!("SELECT COUNT(*) FROM posts")
+    let total = match sqlx::query("SELECT COUNT(*) FROM posts")
         .fetch_one(&pool)
         .await
-        .map_err(|e| {
-            (
+    {
+        Ok(row) => {
+            match row.try_get::<i64, _>(0) {
+                Ok(count) => count,
+                Err(e) => {
+                    tracing::error!("Error parsing post count: {}", e);
+                    0
+                }
+            }
+        }
+        Err(e) => {
+            tracing::error!("Failed to count posts: {}", e);
+            return Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("Failed to count posts: {}", e),
-            )
-        })?
-        .unwrap_or(0);
+            ));
+        }
+    };
 
-    // 获取帖子列表，包括评论数
-    let posts = sqlx::query_as!(
-        PostSummary,
+    // 手动获取帖子列表并构建结果，避免宏生成
+    let rows = match sqlx::query(
         r#"
         SELECT 
-            p.id,
-            p.content,
-            p.created_at,
-            COUNT(c.id) AS "comments_count!: i64"
+            id, 
+            content, 
+            created_at, 
+            COALESCE(comments_count, 0) as comments_count
         FROM 
-            posts p
-        LEFT JOIN 
-            comments c ON p.id = c.post_id
-        GROUP BY 
-            p.id
+            posts
         ORDER BY 
-            p.created_at DESC
+            created_at DESC
         LIMIT $1 OFFSET $2
         "#,
-        page_size as i64,
-        offset as i64
     )
+    .bind(page_size as i64)
+    .bind(offset as i64)
     .fetch_all(&pool)
     .await
-    .map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to fetch posts: {}", e),
-        )
-    })?;
+    {
+        Ok(rows) => rows,
+        Err(e) => {
+            tracing::error!("Failed to fetch posts: {}", e);
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to fetch posts: {}", e),
+            ));
+        }
+    };
+
+    // 手动构建 PostSummary 结构体
+    let mut posts = Vec::with_capacity(rows.len());
+    for row in rows {
+        let id: Uuid = match row.try_get("id") {
+            Ok(val) => val,
+            Err(e) => {
+                tracing::error!("Error parsing post id: {}", e);
+                continue; // 跳过无效的行
+            }
+        };
+
+        let content: String = match row.try_get("content") {
+            Ok(val) => val,
+            Err(e) => {
+                tracing::error!("Error parsing post content for id {}: {}", id, e);
+                continue;
+            }
+        };
+
+        let created_at: time::OffsetDateTime = match row.try_get("created_at") {
+            Ok(val) => val,
+            Err(e) => {
+                tracing::error!("Error parsing post created_at for id {}: {}", id, e);
+                continue;
+            }
+        };
+
+        let comments_count: i32 = match row.try_get("comments_count") {
+            Ok(val) => val,
+            Err(e) => {
+                tracing::error!("Error parsing post comments_count for id {}: {}", id, e);
+                0 // 默认为0
+            }
+        };
+        
+        // 转换为i64类型
+        let comments_count: i64 = comments_count as i64;
+
+        posts.push(PostSummary {
+            id,
+            content,
+            created_at,
+            comments_count,
+        });
+    }
 
     Ok(Json(PostListResponse {
         posts,
@@ -95,26 +152,71 @@ pub async fn create_post(
     // 转义内容以便安全显示，但保留原始格式
     let sanitized_content = sanitize_content(&filtered_content);
 
-    // 创建新帖子
-    let post = sqlx::query_as!(
-        Post,
+    // 创建新帖子 - 手动处理查询结果
+    let row = match sqlx::query(
         r#"
-        INSERT INTO posts (content, ip_address, user_agent)
-        VALUES ($1, $2, $3)
+        INSERT INTO posts (content, ip_address, user_agent, comments_count)
+        VALUES ($1, $2, $3, 0)
         RETURNING id, content, created_at, ip_address, user_agent
-        "#,
-        sanitized_content,
-        ip_address,
-        user_agent
+        "#
     )
+    .bind(sanitized_content)
+    .bind(ip_address.clone())
+    .bind(user_agent.clone())
     .fetch_one(&pool)
     .await
-    .map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to create post: {}", e),
-        )
-    })?;
+    {
+        Ok(row) => row,
+        Err(e) => {
+            tracing::error!("Failed to create post: {}", e);
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to create post: {}", e),
+            ));
+        }
+    };
+
+    // 手动构建 Post 结构体
+    let id: Uuid = match row.try_get("id") {
+        Ok(val) => val,
+        Err(e) => {
+            tracing::error!("Error parsing new post id: {}", e);
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to parse new post: {}", e),
+            ));
+        }
+    };
+
+    let content: String = match row.try_get("content") {
+        Ok(val) => val,
+        Err(e) => {
+            tracing::error!("Error parsing new post content: {}", e);
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to parse new post: {}", e),
+            ));
+        }
+    };
+
+    let created_at: time::OffsetDateTime = match row.try_get("created_at") {
+        Ok(val) => val,
+        Err(e) => {
+            tracing::error!("Error parsing new post created_at: {}", e);
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to parse new post: {}", e),
+            ));
+        }
+    };
+
+    let post = Post {
+        id,
+        content,
+        created_at,
+        ip_address,
+        user_agent,
+    };
 
     Ok(Json(post))
 }
@@ -124,27 +226,94 @@ pub async fn get_post(
     Extension(pool): Extension<PgPool>,
     Path(id): Path<Uuid>,
 ) -> Result<Json<Post>, (StatusCode, String)> {
-    let post = sqlx::query_as!(
-        Post,
+    // 获取单个帖子 - 手动处理查询结果
+    let row = match sqlx::query(
         r#"
-        SELECT id, content, created_at, ip_address, user_agent
+        SELECT 
+            id, 
+            content, 
+            created_at, 
+            ip_address, 
+            user_agent
         FROM posts
         WHERE id = $1
-        "#,
-        id
+        "#
     )
+    .bind(id)
     .fetch_optional(&pool)
     .await
-    .map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to fetch post: {}", e),
-        )
-    })?;
+    {
+        Ok(Some(row)) => row,
+        Ok(None) => {
+            return Err((StatusCode::NOT_FOUND, "Post not found".to_string()));
+        }
+        Err(e) => {
+            tracing::error!("Failed to fetch post: {}", e);
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to fetch post: {}", e),
+            ));
+        }
+    };
 
-    match post {
-        Some(post) => Ok(Json(post)),
-        None => Err((StatusCode::NOT_FOUND, "Post not found".to_string())),
-    }
+    // 手动构建 Post 结构体
+    let post_id: Uuid = match row.try_get("id") {
+        Ok(val) => val,
+        Err(e) => {
+            tracing::error!("Error parsing post id: {}", e);
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to parse post: {}", e),
+            ));
+        }
+    };
+
+    let content: String = match row.try_get("content") {
+        Ok(val) => val,
+        Err(e) => {
+            tracing::error!("Error parsing post content: {}", e);
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to parse post: {}", e),
+            ));
+        }
+    };
+
+    let created_at: time::OffsetDateTime = match row.try_get("created_at") {
+        Ok(val) => val,
+        Err(e) => {
+            tracing::error!("Error parsing post created_at: {}", e);
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to parse post: {}", e),
+            ));
+        }
+    };
+
+    let ip_address: Option<String> = match row.try_get("ip_address") {
+        Ok(val) => val,
+        Err(e) => {
+            tracing::error!("Error parsing post ip_address: {}", e);
+            None
+        }
+    };
+
+    let user_agent: Option<String> = match row.try_get("user_agent") {
+        Ok(val) => val,
+        Err(e) => {
+            tracing::error!("Error parsing post user_agent: {}", e);
+            None
+        }
+    };
+
+    let post = Post {
+        id: post_id,
+        content,
+        created_at,
+        ip_address,
+        user_agent,
+    };
+
+    Ok(Json(post))
 }
 
