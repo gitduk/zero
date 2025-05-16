@@ -6,7 +6,7 @@
     const apiUrl = '/api';
     let currentPage = 1;
     let totalPages = 1;
-    let commentsCache = {};
+    var commentsCache = {}; // 使用var避免重复声明问题
 
     // DOM元素
     let postsContainer;
@@ -52,17 +52,25 @@
 
     // 加载帖子列表
     function loadPosts(page = 1) {
-        if (loadingIndicator) loadingIndicator.style.display = 'block';
+        // 不显示顶部加载指示器，因为帖子容器内已有加载动画
         if (!postsContainer) {
-            console.error('找不到帖子容器元素');
+            console.error('[DEBUG] 找不到帖子容器元素');
             return;
         }
         
         postsContainer.innerHTML = `<div class="text-center p-2"><div class="spinner"></div></div>`;
         currentPage = page;
 
-        fetch(`${apiUrl}/posts?page=${page}&per_page=10`)
+        
+        // 添加5秒超时
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        
+        fetch(`${apiUrl}/posts?page=${page}&per_page=10`, {
+            signal: controller.signal
+        })
             .then(response => {
+                clearTimeout(timeoutId);
                 if (!response.ok) {
                     throw new Error(`服务器错误: ${response.status}`);
                 }
@@ -73,12 +81,12 @@
                 if (data.page && data.total && data.page_size) {
                     updatePagination(data.page, Math.ceil(data.total / data.page_size));
                 }
-                if (loadingIndicator) loadingIndicator.style.display = 'none';
+                // 不需要隐藏顶部加载指示器
             })
             .catch(error => {
                 console.error('加载帖子失败:', error);
                 postsContainer.innerHTML = '<div class="text-center text-muted p-3">暂无内容</div>';
-                if (loadingIndicator) loadingIndicator.style.display = 'none';
+                // 不需要隐藏顶部加载指示器
             });
     }
 
@@ -130,15 +138,15 @@
             postElement.innerHTML = `
                 <div class="card-body">
                     <div class="post-content">${content}</div>
-                    <div class="post-footer">
-                        <small class="post-time">${time}</small>
-                        <button class="btn btn-sm btn-outline-primary show-comments">
+                    <div class="post-footer d-flex justify-content-between align-items-center mt-2">
+                        <small class="post-time text-muted">${time}</small>
+                        <button type="button" class="btn btn-sm btn-outline-primary show-comments">
                             ${post.comments_count > 0 ? `评论 ${post.comments_count}` : '评论'}
                         </button>
                     </div>
                 </div>
-                <div class="comment-section" style="display: none;">
-                    <div class="comments-list">
+                <div class="comment-section" style="display: none; padding: 0 15px 15px 15px;">
+                    <div class="comments-list mt-2">
                         <div class="text-center p-2">
                             <div class="spinner"></div>
                         </div>
@@ -146,7 +154,7 @@
                     <div class="comment-form mt-3">
                         <textarea class="form-control new-comment" placeholder="添加评论..."></textarea>
                         <div class="text-end mt-2">
-                            <button class="btn btn-sm btn-primary submit-comment">发表评论</button>
+                            <button type="button" class="btn btn-sm btn-primary submit-comment">发表评论</button>
                         </div>
                     </div>
                 </div>
@@ -167,12 +175,15 @@
             const commentSection = postElement.querySelector('.comment-section');
                 
             if (commentBtn && commentSection) {
-                commentBtn.addEventListener('click', function() {
-                    const isHidden = commentSection.style.display === 'none';
-                    commentSection.style.display = isHidden ? 'block' : 'none';
-                    
-                    if (isHidden) {
+                commentBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    // 切换评论区显示状态
+                    if (commentSection.style.display === 'none') {
+                        commentSection.style.display = 'block';
                         loadComments(post.id, commentSection);
+                    } else {
+                        commentSection.style.display = 'none';
                     }
                 });
             }
@@ -435,55 +446,104 @@
     }
 
     // 加载评论
-    function loadComments(postId, commentSection) {
+    // commentsCache已在顶部声明为全局变量
+    
+    // 确保window.app存在
+    if (!window.app) window.app = {};
+    
+    function loadComments(postId, commentSection, forceRefresh = false) {
         if (!commentSection) return;
         
         const commentsList = commentSection.querySelector('.comments-list');
         if (!commentsList) return;
         
+        // 检查缓存是否存在且没有过期
+        if (!forceRefresh && commentsCache[postId]) {
+            const now = new Date().getTime();
+            const cachedAt = commentsCache[postId].cachedAt || 0;
+            const cacheAgeMinutes = (now - cachedAt) / (1000 * 60);
+            
+            // 如果缓存不超过3分钟，直接使用缓存
+            if (cacheAgeMinutes <= 3) {
+                console.log('使用缓存的评论数据:', postId);
+                renderCachedComments(commentsCache[postId], commentsList);
+                return;
+            }
+        }
+        
         // 显示加载中
         commentsList.innerHTML = '<div class="text-center p-2"><div class="spinner"></div></div>';
         
-        fetch(`${apiUrl}/posts/${postId}/comments`)
+        // 添加5秒超时
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        
+        fetch(`${apiUrl}/posts/${postId}/comments`, {
+            signal: controller.signal
+        })
             .then(response => {
+                clearTimeout(timeoutId);
                 if (!response.ok) {
                     throw new Error(`服务器错误: ${response.status}`);
                 }
                 return response.json();
             })
             .then(data => {
+                // 添加时间戳并保存到缓存
+                data.cachedAt = new Date().getTime();
+                commentsCache[postId] = data;
+                
                 // 更新评论按钮中的评论数
                 const postElement = commentSection.closest('.card');
                 if (postElement) {
                     const commentBtn = postElement.querySelector('.show-comments');
                     const count = data.total || data.comments?.length || 0;
-                    
+                
                     // 更新按钮文本
                     if (commentBtn) {
                         commentBtn.textContent = count > 0 ? `评论 ${count}` : '评论';
+                        // 确保按钮样式正确
+                        commentBtn.className = 'btn btn-sm btn-outline-primary show-comments';
                     }
                 }
                 
-                if (!data.comments || data.comments.length === 0) {
-                    commentsList.innerHTML = `<div class="text-center text-muted p-3">暂无评论</div>`;
-                    return;
-                }
-                
-                commentsList.innerHTML = '';
-                data.comments.forEach(comment => {
-                    const commentElement = document.createElement('div');
-                    commentElement.className = 'comment';
-                    commentElement.innerHTML = `
-                        <div class="comment-content">${comment.content || ''}</div>
-                        <small class="comment-time">${comment.created_at ? new Date(comment.created_at).toLocaleString() : '未知时间'}</small>
-                    `;
-                    commentsList.appendChild(commentElement);
-                });
+                renderCachedComments(data, commentsList);
             })
             .catch(error => {
                 console.error('加载评论失败:', error);
-                commentsList.innerHTML = `<div class="alert alert-danger">加载失败</div>`;
+                const errorMessage = error.name === 'AbortError' 
+                    ? '加载超时，请检查网络连接' 
+                    : `加载失败: ${error.message}`;
+                commentsList.innerHTML = `
+                    <div class="alert alert-danger">${errorMessage}</div>
+                    <div class="text-center mt-2">
+                        <button class="btn btn-sm btn-outline-primary" onclick="window.app.loadComments('${postId}', this.closest('.comment-section'), true)">重试</button>
+                    </div>
+                `;
             });
+    }
+    
+    // 导出函数到window.app命名空间
+    window.app.loadComments = loadComments;
+    
+    
+    // 渲染缓存的评论
+    function renderCachedComments(data, commentsList) {
+        if (!data.comments || data.comments.length === 0) {
+            commentsList.innerHTML = `<div class="text-center text-muted p-3">暂无评论</div>`;
+            return;
+        }
+        
+        commentsList.innerHTML = '';
+        data.comments.forEach(comment => {
+            const commentElement = document.createElement('div');
+            commentElement.className = 'comment mb-2 pb-2 border-bottom';
+            commentElement.innerHTML = `
+                <div class="comment-content mb-1">${comment.content || ''}</div>
+                <small class="comment-time text-muted d-block">${comment.created_at ? new Date(comment.created_at).toLocaleString() : '未知时间'}</small>
+            `;
+            commentsList.appendChild(commentElement);
+        });
     }
     
     // 提交评论
@@ -499,9 +559,7 @@
         if (!commentTextarea || !submitBtn) return;
         
         submitBtn.disabled = true;
-        submitBtn.textContent = '发布中...';
-        
-
+        submitBtn.textContent = '发表中...';
         
         fetch(`${apiUrl}/posts/${postId}/comments`, {
             method: 'POST',
@@ -512,7 +570,7 @@
         })
         .then(response => {
             if (!response.ok) {
-                throw new Error(`服务器错误: ${response.status}`);
+                throw new Error('提交失败');
             }
             return response.json();
         })
@@ -528,30 +586,50 @@
                 let matches = currentText.match(/评论\s*(\d+)/);
                 let currentCount = matches ? parseInt(matches[1], 10) : 0;
                 let newCount = currentCount + 1;
-                
+                    
                 // 更新按钮文本
                 if (commentBtn) {
                     commentBtn.textContent = `评论 ${newCount}`;
+                    commentBtn.className = 'btn btn-sm btn-outline-primary show-comments';
                 }
-                
-
             }
             
-            loadComments(postId, commentSection);
+            // 清除缓存，强制重新加载
+            delete commentsCache[postId];
+    
+            // 添加延迟确保 DOM 更新完成后再加载
+            setTimeout(() => {
+                loadComments(postId, commentSection, true); // 强制刷新
+            }, 100);
         })
         .catch(error => {
-            console.error('发布评论失败:', error);
-            alert(`发布评论失败: ${error.message || '未知错误'}`);
+            console.error('提交评论失败:', error);
+            alert('提交评论失败: ' + error.message);
         })
         .finally(() => {
             submitBtn.disabled = false;
-            submitBtn.textContent = '发布评论';
+            submitBtn.textContent = '发表';
         });
     }
 
     // 公开API
-    window.app = {
+    // 合并已有的函数，确保不覆盖window.app已有内容
+    Object.assign(window.app, {
         loadPosts: loadPosts,
-        submitPost: submitPost
-    };
+        submitPost: submitPost,
+        loadComments: loadComments, // 确保导出loadComments函数
+        renderCachedComments: renderCachedComments, // 导出渲染函数以便其他脚本使用
+        refresh: function() { // 添加刷新函数
+            loadPosts(1);
+        },
+        version: '1.0.5' // 添加版本号以便调试
+    });
+    
+    // 添加自我诊断功能
+    window.setTimeout(function() {
+        const posts = document.querySelectorAll('#posts-container .card');
+        if (posts.length === 0 && postsContainer) {
+            loadPosts(1);
+        }
+    }, 5000);
 })();

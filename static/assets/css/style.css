@@ -81,12 +81,36 @@ body {
     color: #6c757d;
 }
 
+.post-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.post-info {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
 /* 评论样式 */
 .comment-section {
     background-color: #f8f9fa;
     padding: 15px;
     border-radius: 0 0 10px 10px;
     border-top: 1px solid #e9ecef;
+    margin-top: 0;
+}
+
+.comments-header {
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid #eee;
+    justify-content: flex-start !important;
+}
+
+.comments-status {
+    font-size: 0.9rem;
+    color: #6c757d;
 }
 
 .comment {
@@ -97,9 +121,20 @@ body {
     border-radius: 3px;
 }
 
+.comment:last-child {
+    margin-bottom: 0;
+    border-bottom: none;
+}
+
 .comment-content {
-    margin-bottom: 5px;
+    margin-bottom: 10px;
     word-break: break-word;
+    line-height: 1.5;
+}
+
+.comment-footer {
+    font-size: 0.8rem;
+    padding-top: 5px;
 }
 
 .comment-time {
@@ -107,8 +142,36 @@ body {
     color: #6c757d;
 }
 
+.comment-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.like-btn {
+    border: none;
+    background: none;
+    padding: 0 5px;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+}
+
+.like-btn:hover {
+    opacity: 1;
+    color: #495057 !important;
+}
+
+.comments-wrapper {
+    max-height: 400px;
+    overflow-y: auto;
+    margin-bottom: 15px;
+    padding-right: 5px;
+}
+
 .comment-form {
     margin-top: 15px;
+    border-top: 1px solid #eee;
+    padding-top: 15px;
 }
 
 /* 表单元素 */
@@ -129,14 +192,14 @@ body {
     background-color: #fff;
 }
 
-.new-comment {
+.new-comment-content {
     min-height: 80px;
     resize: vertical;
     border-color: #e9ecef;
     background-color: #f8f9fa;
 }
 
-.new-comment:focus {
+.new-comment-content:focus {
     background-color: #fff;
     border-color: #ced4da;
     box-shadow: 0 0 0 0.2rem rgba(206, 212, 218, 0.25);
@@ -212,6 +275,7 @@ textarea.form-control {
     padding: 4px 10px;
     font-size: 0.85rem;
     color: #6c757d;
+    margin-left: auto;
 }
 
 .btn-sm {
@@ -237,12 +301,20 @@ textarea.form-control {
     margin-top: 1rem;
 }
 
+.mb-2 {
+    margin-bottom: 0.5rem;
+}
+
 .mb-3 {
     margin-bottom: 1rem;
 }
 
 .mb-4 {
     margin-bottom: 1.5rem;
+}
+
+.p-2 {
+    padding: 0.5rem;
 }
 
 .p-3 {
@@ -278,6 +350,16 @@ textarea.form-control {
     margin: 5px;
 }
 
+.error-message {
+    color: #6c757d;
+    padding: 10px;
+}
+
+.retry-btn {
+    padding: 3px 10px;
+    font-size: 0.8rem;
+}
+
 @keyframes spinner {
     to {
         transform: rotate(360deg);
@@ -292,6 +374,16 @@ textarea.form-control {
     border: 1px solid transparent;
     border-radius: 0.25rem;
     text-align: left;
+}
+
+.error-message {
+    color: #6c757d;
+    padding: 10px;
+}
+
+.retry-btn {
+    padding: 3px 10px;
+    font-size: 0.8rem;
 }
 
 .alert-danger {

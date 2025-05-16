@@ -131,7 +131,7 @@
     }
 
     // 设置默认的全局错误处理器（可以被覆盖）
-    globalErrorHandler = function(error) {
+    globalErrorHandler = function globalErrorHandler(error) {
         // 检查是否在开发环境
         const isDev = window.location.hostname === 'localhost' || 
                       window.location.hostname === '127.0.0.1';

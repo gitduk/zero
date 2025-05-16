@@ -9,14 +9,14 @@
     <meta name="description" content="匿名树洞，分享你的想法和感受，无需注册">
 </head>
 <body>
-    <div id="loading-indicator" class="loading">
+    <div id="loading-indicator" class="loading" style="display: none;">
         <div class="spinner"></div>
         <p>正在加载内容...</p>
     </div>
 
     <div class="container">
         <header class="header">
-            <h1>树洞</h1>
+            <h1><a href="javascript:location.reload();" title="刷新页面" style="color: inherit; text-decoration: none; cursor: pointer;">树洞</a></h1>
             <p>在这里匿名分享你的想法和感受</p>
         </header>
 
@@ -41,16 +41,34 @@
         </div>
     </div>
 
-    <script src="assets/js/utils.js?v=1.0.1"></script>
-    <script src="assets/js/error-handler.js?v=1.0.1"></script>
-    <script src="assets/js/ui-effects.js?v=1.0.1"></script>
-    <script src="assets/js/app.js?v=1.0.1"></script>
+    <script src="assets/js/utils.js?v=1.0.4"></script>
+    <script src="assets/js/error-handler.js?v=1.0.4"></script>
+    <script src="assets/js/ui-effects.js?v=1.0.4"></script>
+    <script src="assets/js/main.js?v=1.0.5"></script>
+    <script src="assets/js/comment-enhancements.js?v=1.0.6"></script>
+    <script src="assets/js/app.js?v=1.0.10"></script>
     <script>
         // 只记录关键错误
         window.onerror = function(msg, url, line, col, error) {
             console.error('页面错误:', msg, 'line', line);
             return false;
         };
+        
+        // 确保页面加载
+        document.addEventListener('DOMContentLoaded', function() {
+            // 检查加载状态
+            setTimeout(function() {
+                const postsContainer = document.getElementById('posts-container');
+                if (postsContainer && postsContainer.querySelector('.spinner') && !postsContainer.querySelector('.card')) {
+                    console.log('检测到加载卡住，尝试重新加载...');
+                    if (window.app && window.app.refresh) {
+                        window.app.refresh();
+                    } else {
+                        location.reload();
+                    }
+                }
+            }, 5000);
+        });
     </script>
 </body>
 </html>
