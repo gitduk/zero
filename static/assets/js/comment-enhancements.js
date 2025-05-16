@@ -199,7 +199,7 @@
             const header = document.createElement('div');
             header.className = 'comments-header d-flex align-items-center mb-2';
             header.innerHTML = `
-                <small class="text-muted comments-status">评论</small>
+                <small class="text-muted comments-status"></small>
             `;
             commentSection.insertBefore(header, commentSection.firstChild);
         }
@@ -363,7 +363,8 @@
         const time = document.createElement('small');
         time.className = 'comment-time text-muted';
         time.textContent = formatDate(comment.created_at);
-        time.title = new Date(comment.created_at).toLocaleString();
+        const dateObj = new Date(comment.created_at);
+        time.title = `${dateObj.getFullYear()}-${(dateObj.getMonth() + 1).toString().padStart(2, '0')}-${dateObj.getDate().toString().padStart(2, '0')} ${dateObj.getHours().toString().padStart(2, '0')}:${dateObj.getMinutes().toString().padStart(2, '0')}:${dateObj.getSeconds().toString().padStart(2, '0')}`;
         
         // 功能按钮区域
         const actionsDiv = document.createElement('div');
@@ -403,7 +404,7 @@
         
         const cached = commentsCache[postId];
         if (!cached) {
-            statusElem.textContent = '评论';
+            statusElem.textContent = '';
             return;
         }
         
@@ -597,11 +598,13 @@
         } else if (diff < 2592000) {
             return Math.floor(diff / 86400) + ' 天前';
         } else {
-            // 超过30天显示具体日期
+            // 超过30天显示具体日期和时间（24小时制）
             const year = date.getFullYear();
-            const month = date.getMonth() + 1;
-            const day = date.getDate();
-            return `${year}-${month < 10 ? '0' + month : month}-${day < 10 ? '0' + day : day}`;
+            const month = (date.getMonth() + 1).toString().padStart(2, '0');
+            const day = date.getDate().toString().padStart(2, '0');
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            return `${year}-${month}-${day} ${hours}:${minutes}`;
         }
     }
 })();

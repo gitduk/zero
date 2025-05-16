@@ -157,7 +157,8 @@ function createPostElement(post) {
     const timeElement = document.createElement('small');
     timeElement.className = 'post-time text-muted';
     timeElement.textContent = formatDate(post.created_at);
-    timeElement.title = new Date(post.created_at).toLocaleString();
+    const dateObj = new Date(post.created_at);
+    timeElement.title = `${dateObj.getFullYear()}-${(dateObj.getMonth() + 1).toString().padStart(2, '0')}-${dateObj.getDate().toString().padStart(2, '0')} ${dateObj.getHours().toString().padStart(2, '0')}:${dateObj.getMinutes().toString().padStart(2, '0')}`;
     infoDiv.appendChild(timeElement);
     
     // 创建右侧按钮组
@@ -398,7 +399,8 @@ function createCommentElement(comment) {
     const time = document.createElement('small');
     time.className = 'comment-time text-muted';
     time.textContent = formatDate(comment.created_at);
-    time.title = new Date(comment.created_at).toLocaleString();
+    const dateObj = new Date(comment.created_at);
+    time.title = `${dateObj.getFullYear()}-${(dateObj.getMonth() + 1).toString().padStart(2, '0')}-${dateObj.getDate().toString().padStart(2, '0')} ${dateObj.getHours().toString().padStart(2, '0')}:${dateObj.getMinutes().toString().padStart(2, '0')}`;
     
     // 功能按钮区域
     const actionsDiv = document.createElement('div');

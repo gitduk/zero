@@ -135,7 +135,10 @@
     
             // 确保内容安全
             const content = post.content || '(无内容)';
-            const time = post.created_at ? new Date(post.created_at).toLocaleString() : '未知时间';
+            const date = new Date(post.created_at);
+            const time = post.created_at ? 
+                `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}` 
+                : '未知时间';
     
             postElement.innerHTML = `
                 <div class="card-body">
@@ -301,6 +304,12 @@
         });
     }
 
+    // 格式化评论时间为24小时制
+    function formatCommentTime(dateString) {
+        const date = new Date(dateString);
+        return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+    }
+    
     // 提交评论
     function submitComment(postId, content, commentSection) {
         if (!content.trim()) {
@@ -547,7 +556,7 @@
             commentElement.className = 'comment mb-2 pb-2 border-bottom';
             commentElement.innerHTML = `
                 <div class="comment-content mb-1">${comment.content || ''}</div>
-                <small class="comment-time text-muted d-block">${comment.created_at ? new Date(comment.created_at).toLocaleString() : '未知时间'}</small>
+                <small class="comment-time text-muted d-block">${comment.created_at ? formatCommentTime(comment.created_at) : '未知时间'}</small>
             `;
             commentsList.appendChild(commentElement);
         });

@@ -21,11 +21,13 @@
         } else if (diff < 2592000) {
             return Math.floor(diff / 86400) + ' 天前';
         } else {
-            // 超过30天显示具体日期
+            // 超过30天显示具体日期和时间（24小时制）
             const year = date.getFullYear();
-            const month = date.getMonth() + 1;
-            const day = date.getDate();
-            return `${year}-${month}-${day}`;
+            const month = (date.getMonth() + 1).toString().padStart(2, '0');
+            const day = date.getDate().toString().padStart(2, '0');
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            return `${year}-${month}-${day} ${hours}:${minutes}`;
         }
     }
 
