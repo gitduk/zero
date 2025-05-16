@@ -17,9 +17,11 @@ pub async fn get_posts(
     Extension(pool): Extension<PgPool>,
     Query(pagination): Query<PaginationParams>,
 ) -> Result<Json<PostListResponse>, (StatusCode, String)> {
+    // 处理帖子列表请求
     let page = pagination.page.unwrap_or(1);
     let page_size = pagination.per_page.unwrap_or(20);
     let offset = (page - 1) * page_size;
+
 
     // 获取帖子总数
     let total = match sqlx::query("SELECT COUNT(*) FROM posts")
@@ -112,20 +114,22 @@ pub async fn get_posts(
         // 转换为i64类型
         let comments_count: i64 = comments_count as i64;
 
-        posts.push(PostSummary {
+        let post_summary = PostSummary {
             id,
             content,
             created_at,
             comments_count,
-        });
+        };
+        posts.push(post_summary);
     }
 
-    Ok(Json(PostListResponse {
+    let response = PostListResponse {
         posts,
         total,
         page,
         page_size,
-    }))
+    };
+    Ok(Json(response))
 }
 
 // 创建新帖子
@@ -145,11 +149,13 @@ pub async fn create_post(
         .get("user-agent")
         .and_then(|v| v.to_str().ok())
         .map(ToString::to_string);
+        
+    // 内容验证已在 model 的反序列化时完成
 
     // 首先过滤敏感词
     let filtered_content = filter_sensitive_words(&request.content);
 
-    // 转义内容以便安全显示，但保留原始格式
+    // 转义内容以便安全显示，防止XSS攻击
     let sanitized_content = sanitize_content(&filtered_content);
 
     // 创建新帖子 - 手动处理查询结果
@@ -216,6 +222,7 @@ pub async fn create_post(
         created_at,
         ip_address,
         user_agent,
+        comments_count: 0, // 新创建的帖子，评论数为0
     };
 
     Ok(Json(post))
@@ -230,13 +237,16 @@ pub async fn get_post(
     let row = match sqlx::query(
         r#"
         SELECT 
-            id, 
-            content, 
-            created_at, 
-            ip_address, 
-            user_agent
-        FROM posts
-        WHERE id = $1
+            p.id, 
+            p.content, 
+            p.created_at, 
+            p.ip_address, 
+            p.user_agent,
+            COUNT(c.id) AS comments_count
+        FROM posts p
+        LEFT JOIN comments c ON p.id = c.post_id
+        WHERE p.id = $1
+        GROUP BY p.id, p.content, p.created_at, p.ip_address, p.user_agent
         "#
     )
     .bind(id)
@@ -306,12 +316,18 @@ pub async fn get_post(
         }
     };
 
+    let comments_count: i64 = match row.try_get("comments_count") {
+        Ok(val) => val,
+        Err(_) => 0
+    };
+
     let post = Post {
         id: post_id,
-        content,
+        content, // 已经在数据库中存储的安全内容
         created_at,
         ip_address,
         user_agent,
+        comments_count,
     };
 
     Ok(Json(post))

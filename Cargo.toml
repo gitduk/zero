@@ -8,7 +8,7 @@ edition = "2021"
 axum = { version = "0.6", features = ["headers", "macros"] }
 axum-extra = { version = "0.7" }
 tower = { version = "0.4", features = ["util"] }
-tower-http = { version = "0.4", features = ["fs", "trace", "cors", "compression-gzip", "compression-br"] }
+tower-http = { version = "0.4", features = ["fs", "trace", "cors", "compression-gzip", "compression-br", "set-header"] }
 
 # Async runtime
 tokio = { version = "1", features = ["full"] }
@@ -31,3 +31,4 @@ anyhow = "1.0"
 thiserror = "1.0"
 lazy_static = "1.4.0"
 tempfile = "3.8.0"
+html-escape = "0.2.13"

@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API 调试页面</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #333;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 10px;
+        }
+        .card {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .card h2 {
+            margin-top: 0;
+            font-size: 1.2em;
+            color: #555;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 14px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .success {
+            color: green;
+        }
+        .error {
+            color: red;
+        }
+        .tab {
+            overflow: hidden;
+            border: 1px solid #ccc;
+            background-color: #f1f1f1;
+            border-radius: 4px 4px 0 0;
+        }
+        .tab button {
+            background-color: inherit;
+            color: #333;
+            float: left;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            padding: 10px 16px;
+            transition: 0.3s;
+        }
+        .tab button:hover {
+            background-color: #ddd;
+        }
+        .tab button.active {
+            background-color: #ccc;
+        }
+        .tabcontent {
+            display: none;
+            padding: 15px;
+            border: 1px solid #ccc;
+            border-top: none;
+            border-radius: 0 0 4px 4px;
+        }
+        .visible {
+            display: block;
+        }
+        input[type=text], textarea {
+            width: 100%;
+            padding: 8px;
+            margin: 8px 0;
+            display: inline-block;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+    <h1>API 调试页面</h1>
+    
+    <div class="tab">
+        <button class="tablinks active" onclick="openTab(event, 'apiTests')">API 测试</button>
+        <button class="tablinks" onclick="openTab(event, 'resourceTests')">资源测试</button>
+        <button class="tablinks" onclick="openTab(event, 'browserInfo')">浏览器信息</button>
+    </div>
+    
+    <div id="apiTests" class="tabcontent visible">
+        <div class="card">
+            <h2>获取帖子列表</h2>
+            <button onclick="fetchPosts()">获取帖子</button>
+            <div id="postsResult"></div>
+        </div>
+        
+        <div class="card">
+            <h2>创建帖子</h2>
+            <textarea id="newPostContent" rows="4" placeholder="帖子内容"></textarea>
+            <button onclick="createPost()">发布帖子</button>
+            <div id="createPostResult"></div>
+        </div>
+        
+        <div class="card">
+            <h2>获取评论</h2>
+            <input type="text" id="postIdForComments" placeholder="帖子ID">
+            <button onclick="fetchComments()">获取评论</button>
+            <div id="commentsResult"></div>
+        </div>
+        
+        <div class="card">
+            <h2>自定义API请求</h2>
+            <input type="text" id="customApiUrl" placeholder="API路径 (例如: /api/posts)" value="/api/posts">
+            <select id="requestMethod">
+                <option value="GET">GET</option>
+                <option value="POST">POST</option>
+            </select>
+            <textarea id="requestBody" rows="4" placeholder="请求体 (JSON格式)"></textarea>
+            <button onclick="makeCustomRequest()">发送请求</button>
+            <div id="customRequestResult"></div>
+        </div>
+    </div>
+    
+    <div id="resourceTests" class="tabcontent">
+        <div class="card">
+            <h2>静态资源测试</h2>
+            <button onclick="testStaticResources()">测试资源</button>
+            <div id="resourcesResult"></div>
+        </div>
+    </div>
+    
+    <div id="browserInfo" class="tabcontent">
+        <div class="card">
+            <h2>浏览器信息</h2>
+            <pre id="userAgentInfo"></pre>
+        </div>
+        
+        <div class="card">
+            <h2>网络测试</h2>
+            <button onclick="testNetwork()">测试网络</button>
+            <div id="networkResult"></div>
+        </div>
+    </div>
+    
+    <script>
+        // 打开标签页
+        function openTab(evt, tabName) {
+            var i, tabcontent, tablinks;
+            tabcontent = document.getElementsByClassName("tabcontent");
+            for (i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].classList.remove("visible");
+            }
+            tablinks = document.getElementsByClassName("tablinks");
+            for (i = 0; i < tablinks.length; i++) {
+                tablinks[i].className = tablinks[i].className.replace(" active", "");
+            }
+            document.getElementById(tabName).classList.add("visible");
+            evt.currentTarget.className += " active";
+        }
+        
+        // 格式化JSON
+        function formatJSON(obj) {
+            return JSON.stringify(obj, null, 2);
+        }
+        
+        // 获取帖子
+        function fetchPosts() {
+            const resultDiv = document.getElementById('postsResult');
+            resultDiv.innerHTML = '<p>正在获取帖子...</p>';
+            
+            fetch('/api/posts')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP Error: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    resultDiv.innerHTML = `
+                        <p class="success">获取成功</p>
+                        <p>总帖子数: ${data.total || '未知'}</p>
+                        <p>当前页: ${data.page || '未知'}</p>
+                        <p>每页数量: ${data.page_size || '未知'}</p>
+                        <p>帖子列表:</p>
+                        <pre>${formatJSON(data.posts || [])}</pre>
+                    `;
+                })
+                .catch(error => {
+                    resultDiv.innerHTML = `<p class="error">错误: ${error.message}</p>`;
+                });
+        }
+        
+        // 创建帖子
+        function createPost() {
+            const content = document.getElementById('newPostContent').value;
+            const resultDiv = document.getElementById('createPostResult');
+            
+            if (!content.trim()) {
+                resultDiv.innerHTML = '<p class="error">请输入帖子内容</p>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<p>正在发布帖子...</p>';
+            
+            fetch('/api/posts', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ content })
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP Error: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    resultDiv.innerHTML = `
+                        <p class="success">发布成功</p>
+                        <pre>${formatJSON(data)}</pre>
+                    `;
+                    document.getElementById('newPostContent').value = '';
+                })
+                .catch(error => {
+                    resultDiv.innerHTML = `<p class="error">错误: ${error.message}</p>`;
+                });
+        }
+        
+        // 获取评论
+        function fetchComments() {
+            const postId = document.getElementById('postIdForComments').value;
+            const resultDiv = document.getElementById('commentsResult');
+            
+            if (!postId.trim()) {
+                resultDiv.innerHTML = '<p class="error">请输入帖子ID</p>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<p>正在获取评论...</p>';
+            
+            fetch(`/api/posts/${postId}/comments`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP Error: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    resultDiv.innerHTML = `
+                        <p class="success">获取成功</p>
+                        <p>总评论数: ${data.total || '未知'}</p>
+                        <p>当前页: ${data.page || '未知'}</p>
+                        <p>每页数量: ${data.page_size || '未知'}</p>
+                        <p>评论列表:</p>
+                        <pre>${formatJSON(data.comments || [])}</pre>
+                    `;
+                })
+                .catch(error => {
+                    resultDiv.innerHTML = `<p class="error">错误: ${error.message}</p>`;
+                });
+        }
+        
+        // 自定义API请求
+        function makeCustomRequest() {
+            const url = document.getElementById('customApiUrl').value;
+            const method = document.getElementById('requestMethod').value;
+            const body = document.getElementById('requestBody').value;
+            const resultDiv = document.getElementById('customRequestResult');
+            
+            if (!url.trim()) {
+                resultDiv.innerHTML = '<p class="error">请输入API路径</p>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<p>正在发送请求...</p>';
+            
+            const options = {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            };
+            
+            if (method === 'POST' && body.trim()) {
+                try {
+                    options.body = JSON.parse(body);
+                } catch (e) {
+                    resultDiv.innerHTML = '<p class="error">请求体不是有效的JSON</p>';
+                    return;
+                }
+            }
+            
+            fetch(url, options)
+                .then(response => {
+                    const statusText = `状态码: ${response.status} ${response.statusText}`;
+                    if (!response.ok) {
+                        throw new Error(`HTTP Error: ${statusText}`);
+                    }
+                    return response.json().then(data => ({ data, statusText }));
+                })
+                .then(({ data, statusText }) => {
+                    resultDiv.innerHTML = `
+                        <p class="success">请求成功 (${statusText})</p>
+                        <pre>${formatJSON(data)}</pre>
+                    `;
+                })
+                .catch(error => {
+                    resultDiv.innerHTML = `<p class="error">错误: ${error.message}</p>`;
+                });
+        }
+        
+        // 测试静态资源
+        function testStaticResources() {
+            const resultDiv = document.getElementById('resourcesResult');
+            resultDiv.innerHTML = '<p>正在测试资源访问...</p>';
+            
+            const resources = [
+                { name: 'CSS 样式文件', url: '/assets/css/style.css' },
+                { name: 'JavaScript 工具', url: '/assets/js/utils.js' },
+                { name: 'JavaScript 应用', url: '/assets/js/app.js' },
+                { name: 'JavaScript UI效果', url: '/assets/js/ui-effects.js' },
+                { name: 'JavaScript 错误处理', url: '/assets/js/error-handler.js' },
+                { name: 'Favicon', url: '/favicon.ico' }
+            ];
+            
+            let resultsHtml = '';
+            let completedTests = 0;
+            
+            resources.forEach(resource => {
+                fetch(resource.url)
+                    .then(response => {
+                        completedTests++;
+                        const status = response.ok 
+                            ? `<span class="success">✓ (${response.status})</span>` 
+                            : `<span class="error">✗ (${response.status})</span>`;
+                            
+                        resultsHtml += `<p>${resource.name}: ${status}</p>`;
+                        
+                        if (completedTests === resources.length) {
+                            resultDiv.innerHTML = resultsHtml;
+                        }
+                    })
+                    .catch(error => {
+                        completedTests++;
+                        resultsHtml += `<p>${resource.name}: <span class="error">✗ (${error.message})</span></p>`;
+                        
+                        if (completedTests === resources.length) {
+                            resultDiv.innerHTML = resultsHtml;
+                        }
+                    });
+            });
+        }
+        
+        // 显示浏览器信息
+        function showBrowserInfo() {
+            const infoDiv = document.getElementById('userAgentInfo');
+            const browserInfo = {
+                userAgent: navigator.userAgent,
+                language: navigator.language,
+                platform: navigator.platform,
+                cookiesEnabled: navigator.cookieEnabled,
+                screenSize: {
+                    width: window.screen.width,
+                    height: window.screen.height
+                },
+                windowSize: {
+                    width: window.innerWidth,
+                    height: window.innerHeight
+                }
+            };
+            
+            infoDiv.textContent = formatJSON(browserInfo);
+        }
+        
+        // 测试网络
+        function testNetwork() {
+            const resultDiv = document.getElementById('networkResult');
+            resultDiv.innerHTML = '<p>正在测试网络...</p>';
+            
+            const testUrls = [
+                { name: 'API 根路径', url: '/api' },
+                { name: '内部服务', url: '/api/posts?page=1&per_page=1' }
+            ];
+            
+            let resultsHtml = '';
+            let completedTests = 0;
+            
+            const startTime = Date.now();
+            resultsHtml += `<p>测试开始时间: ${new Date(startTime).toLocaleTimeString()}</p>`;
+            
+            testUrls.forEach(test => {
+                const requestStart = Date.now();
+                
+                fetch(test.url)
+                    .then(response => {
+                        completedTests++;
+                        const requestTime = Date.now() - requestStart;
+                        const status = response.ok 
+                            ? `<span class="success">✓ (${response.status}, ${requestTime}ms)</span>` 
+                            : `<span class="error">✗ (${response.status}, ${requestTime}ms)</span>`;
+                            
+                        resultsHtml += `<p>${test.name}: ${status}</p>`;
+                        
+                        if (completedTests === testUrls.length) {
+                            const totalTime = Date.now() - startTime;
+                            resultsHtml += `<p>总耗时: ${totalTime}ms</p>`;
+                            resultDiv.innerHTML = resultsHtml;
+                        }
+                    })
+                    .catch(error => {
+                        completedTests++;
+                        const requestTime = Date.now() - requestStart;
+                        resultsHtml += `<p>${test.name}: <span class="error">✗ (${error.message}, ${requestTime}ms)</span></p>`;
+                        
+                        if (completedTests === testUrls.length) {
+                            const totalTime = Date.now() - startTime;
+                            resultsHtml += `<p>总耗时: ${totalTime}ms</p>`;
+                            resultDiv.innerHTML = resultsHtml;
+                        }
+                    });
+            });
+        }
+        
+        // 初始化页面
+        document.addEventListener('DOMContentLoaded', function() {
+            showBrowserInfo();
+        });
+    </script>
+</body>
+</html>

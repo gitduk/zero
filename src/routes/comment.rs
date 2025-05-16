@@ -30,7 +30,7 @@ pub async fn get_comments(
     .fetch_one(&pool)
     .await
     .map_err(|e| {
-        tracing::error!("Failed to check post existence: {}", e);
+        tracing::error!("数据库错误: {}", e);
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             format!("Failed to check post existence: {}", e),
@@ -52,13 +52,13 @@ pub async fn get_comments(
             match row.try_get::<i64, _>(0) {
                 Ok(count) => count,
                 Err(e) => {
-                    tracing::error!("Error parsing comment count: {}", e);
+                    tracing::error!("解析评论数量失败: {}", e);
                     0
                 }
             }
         }
         Err(e) => {
-            tracing::error!("Failed to count comments: {}", e);
+            tracing::error!("查询评论数量失败: {}", e);
             return Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("Failed to count comments: {}", e),
@@ -78,7 +78,7 @@ pub async fn get_comments(
             user_agent
         FROM comments
         WHERE post_id = $1
-        ORDER BY created_at ASC
+        ORDER BY created_at DESC
         LIMIT $2 OFFSET $3
         "#
     )
@@ -103,60 +103,44 @@ pub async fn get_comments(
     for row in rows {
         let id: Uuid = match row.try_get("id") {
             Ok(val) => val,
-            Err(e) => {
-                tracing::error!("Error parsing comment id: {}", e);
-                continue; // 跳过无效的行
-            }
+            Err(_) => continue, // 跳过无效的行
         };
 
         let post_id: Uuid = match row.try_get("post_id") {
             Ok(val) => val,
-            Err(e) => {
-                tracing::error!("Error parsing comment post_id for id {}: {}", id, e);
-                continue;
-            }
+            Err(_) => continue,
         };
 
         let content: String = match row.try_get("content") {
             Ok(val) => val,
-            Err(e) => {
-                tracing::error!("Error parsing comment content for id {}: {}", id, e);
-                continue;
-            }
+            Err(_) => continue,
         };
 
         let created_at: time::OffsetDateTime = match row.try_get("created_at") {
             Ok(val) => val,
-            Err(e) => {
-                tracing::error!("Error parsing comment created_at for id {}: {}", id, e);
-                continue;
-            }
+            Err(_) => continue,
         };
 
         let ip_address: Option<String> = match row.try_get("ip_address") {
             Ok(val) => val,
-            Err(e) => {
-                tracing::error!("Error parsing comment ip_address for id {}: {}", id, e);
-                None
-            }
+            Err(_) => None,
         };
 
         let user_agent: Option<String> = match row.try_get("user_agent") {
             Ok(val) => val,
-            Err(e) => {
-                tracing::error!("Error parsing comment user_agent for id {}: {}", id, e);
-                None
-            }
+            Err(_) => None,
         };
 
-        comments.push(Comment {
+        // 确保输出到前端的内容也经过了安全处理
+        let comment = Comment {
             id,
             post_id,
             content,
             created_at,
             ip_address,
             user_agent,
-        });
+        };
+        comments.push(comment);
     }
 
     Ok(Json(CommentListResponse {
@@ -182,7 +166,7 @@ pub async fn create_comment(
     .fetch_one(&pool)
     .await
     .map_err(|e| {
-        tracing::error!("Failed to check post existence: {}", e);
+        tracing::error!("数据库错误: {}", e);
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             format!("Failed to check post existence: {}", e),
@@ -206,10 +190,10 @@ pub async fn create_comment(
         .and_then(|v| v.to_str().ok())
         .map(ToString::to_string);
 
-    // 首先过滤敏感词
-    let filtered_content = filter_sensitive_words(&request.content);
+    // 内容验证已在 model 的反序列化时完成
 
-    // 转义内容以便安全显示，但保留原始格式
+    // 处理内容
+    let filtered_content = filter_sensitive_words(&request.content);
     let sanitized_content = sanitize_content(&filtered_content);
 
     // 创建新评论 - 手动处理查询结果
@@ -247,7 +231,7 @@ pub async fn create_comment(
     let id: Uuid = match row.try_get("id") {
         Ok(val) => val,
         Err(e) => {
-            tracing::error!("Error parsing new comment id: {}", e);
+            tracing::error!("解析新评论ID失败: {}", e);
             return Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("Failed to parse new comment: {}", e),
@@ -258,7 +242,7 @@ pub async fn create_comment(
     let comment_post_id: Uuid = match row.try_get("post_id") {
         Ok(val) => val,
         Err(e) => {
-            tracing::error!("Error parsing new comment post_id: {}", e);
+            tracing::error!("解析新评论帖子ID失败: {}", e);
             return Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("Failed to parse new comment: {}", e),
@@ -269,7 +253,7 @@ pub async fn create_comment(
     let content: String = match row.try_get("content") {
         Ok(val) => val,
         Err(e) => {
-            tracing::error!("Error parsing new comment content: {}", e);
+            tracing::error!("解析新评论内容失败: {}", e);
             return Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("Failed to parse new comment: {}", e),
@@ -280,7 +264,7 @@ pub async fn create_comment(
     let created_at: time::OffsetDateTime = match row.try_get("created_at") {
         Ok(val) => val,
         Err(e) => {
-            tracing::error!("Error parsing new comment created_at: {}", e);
+            tracing::error!("解析新评论时间失败: {}", e);
             return Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("Failed to parse new comment: {}", e),
@@ -290,24 +274,18 @@ pub async fn create_comment(
 
     let ip_address: Option<String> = match row.try_get("ip_address") {
         Ok(val) => val,
-        Err(e) => {
-            tracing::error!("Error parsing new comment ip_address: {}", e);
-            None
-        }
+        Err(_) => None,
     };
 
     let user_agent: Option<String> = match row.try_get("user_agent") {
         Ok(val) => val,
-        Err(e) => {
-            tracing::error!("Error parsing new comment user_agent: {}", e);
-            None
-        }
+        Err(_) => None,
     };
 
     let comment = Comment {
         id,
         post_id: comment_post_id,
-        content,
+        content,  // 内容已在插入数据库前被净化
         created_at,
         ip_address,
         user_agent,
