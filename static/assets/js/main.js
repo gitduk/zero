@@ -77,11 +77,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // 设置事件处理程序
 function setupEventHandlers() {
-    // 发布帖子按钮
-    const submitPostBtn = document.getElementById('submit-post');
-    if (submitPostBtn) {
-        submitPostBtn.addEventListener('click', handlePostSubmit);
-    }
+    // 不再主动绑定提交事件，避免双重提交
+    // 由app.js负责处理提交帖子功能
 
     // 自动调整文本框大小
     setupAutoResizeTextareas();
@@ -533,50 +530,14 @@ function likeComment(commentId, likeButton) {
     }
 }
 
-// 处理帖子提交
+// 处理帖子提交 - 不再使用此函数，由app.js处理
+// 保留函数定义以避免引用错误
 async function handlePostSubmit() {
-    const textarea = document.getElementById('new-post-content');
-    const submitButton = document.getElementById('submit-post');
-
-    const content = textarea.value.trim();
-    if (!content) {
-        alert('请输入内容');
-        return;
-    }
-
-    // 禁用按钮，防止重复提交
-    submitButton.disabled = true;
-    submitButton.textContent = '发布中...';
-
-    try {
-        const response = await fetch(`${API_BASE_URL}/posts`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ content })
-        });
-
-        if (!response.ok) {
-            throw new Error(`发布失败 (${response.status})`);
-        }
-
-        const post = await response.json();
-        console.log('帖子发布成功:', post);
-
-        // 清空输入框
-        textarea.value = '';
-        textarea.style.height = 'auto';
-
-        // 重新加载帖子列表
-        loadPosts(1);
-    } catch (error) {
-        console.error('发布帖子失败:', error);
-        alert(`发布失败: ${error.message}`);
-    } finally {
-        // 恢复按钮状态
-        submitButton.disabled = false;
-        submitButton.textContent = '回复';
-        window._commentSubmitting = false;
-        window._forceCommentRefresh = false;
+    // 转发到app.js中的submitPost函数
+    if (window.app && typeof window.app.submitPost === 'function') {
+        window.app.submitPost();
+    } else {
+        alert('帖子提交功能不可用');
     }
 }
 
@@ -602,9 +563,15 @@ function setupCtrlEnterShortcuts() {
                 // 查找最近的提交按钮
                 const form = this.closest('.comment-form, .post-form');
                 if (form) {
-                    const submitBtn = form.querySelector('button[type="submit"], .submit-comment, .submit-post, #submit-post');
-                    if (submitBtn && !submitBtn.disabled) {
-                        submitBtn.click();
+                    // 检查是否是帖子表单
+                    if (form.classList.contains('post-form') && window.app && typeof window.app.submitPost === 'function') {
+                        // 直接调用app.js的提交函数
+                        window.app.submitPost();
+                    } else {
+                        const submitBtn = form.querySelector('button[type="submit"], .submit-comment, .submit-post, #submit-post');
+                        if (submitBtn && !submitBtn.disabled) {
+                            submitBtn.click();
+                        }
                     }
                 }
             }

@@ -38,6 +38,8 @@
     function setupEventListeners() {
         // 发布帖子按钮
         if (submitPostBtn) {
+            // 移除可能存在的旧事件监听器，避免重复绑定
+            submitPostBtn.removeEventListener('click', submitPost);
             submitPostBtn.addEventListener('click', submitPost);
         }
 
@@ -353,6 +355,11 @@
             return;
         }
         
+        // 防止重复提交 - 如果按钮已禁用，直接退出
+        if (submitPostBtn.disabled) {
+            return;
+        }
+        
         submitPostBtn.disabled = true;
         submitPostBtn.textContent = '发表中';
         
@@ -557,6 +564,11 @@
         const submitBtn = commentSection.querySelector('.submit-comment');
         
         if (!commentTextarea || !submitBtn) return;
+        
+        // 防止重复提交
+        if (submitBtn.disabled) {
+            return;
+        }
         
         submitBtn.disabled = true;
         submitBtn.textContent = '发表中...';
