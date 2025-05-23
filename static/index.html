@@ -1,74 +1,99 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>树洞 - 匿名分享你的想法</title>
-    <link rel="icon" href="favicon.ico" type="image/x-icon">
-    <link rel="stylesheet" href="assets/css/style.css?v=1.0.1">
-    <meta name="description" content="匿名树洞，分享你的想法和感受，无需注册">
-</head>
-<body>
-    <div id="loading-indicator" class="loading" style="display: none;">
-        <div class="spinner"></div>
-        <p>正在加载内容...</p>
-    </div>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>树洞 - 匿名分享你的想法</title>
+        <link rel="icon" href="favicon.ico" type="image/x-icon" />
+        <link rel="stylesheet" href="assets/css/style.css?v=1.1.1" />
+        <meta
+            name="description"
+            content="匿名树洞，分享你的想法和感受，无需注册"
+        />
+    </head>
+    <body>
+        <div id="loading-indicator" class="loading" style="display: none">
+            <div class="spinner"></div>
+            <p>正在加载内容...</p>
+        </div>
 
-    <div class="container">
-        <header class="header">
-            <h1><a href="javascript:location.reload();" title="刷新页面" style="color: inherit; text-decoration: none; cursor: pointer;">树洞</a></h1>
-            <p>在这里匿名分享你的想法和感受</p>
-        </header>
+        <div class="container">
+            <header class="header">
+                <h1>
+                    <a
+                        href="javascript:location.reload();"
+                        title="刷新页面"
+                        style="
+                            color: inherit;
+                            text-decoration: none;
+                            cursor: pointer;
+                        "
+                        >树洞</a
+                    >
+                </h1>
+                <p>在这里匿名分享你的想法和感受</p>
+            </header>
 
-        <div class="post-form card mb-4">
-            <div class="card-body">
-                <h5 class="card-title">写下你想说的...</h5>
-                <textarea id="new-post-content" class="form-control mb-3" placeholder="在这里分享你的想法..."></textarea>
-                <button id="submit-post" class="btn btn-primary float-end">发表</button>
-                <div class="clearfix"></div>
+            <div class="post-form card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">写下你想说的...</h5>
+                    <textarea
+                        id="new-post-content"
+                        class="form-control mb-3"
+                        placeholder="在这里分享你的想法..."
+                    ></textarea>
+                    <button id="submit-post" class="btn btn-primary float-end">
+                        发表
+                    </button>
+                    <div class="clearfix"></div>
+                </div>
+            </div>
+
+            <div id="posts-container">
+                <!-- 帖子内容将通过JS动态加载 -->
+                <div class="text-center p-2">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+
+            <div id="pagination" class="text-center">
+                <!-- 分页内容将通过JS动态加载 -->
             </div>
         </div>
 
-        <div id="posts-container">
-            <!-- 帖子内容将通过JS动态加载 -->
-            <div class="text-center p-2">
-                <div class="spinner"></div>
-            </div>
-        </div>
+        <script src="assets/js/utils.js?v=1.1.1"></script>
+        <script src="assets/js/error-handler.js?v=1.1.1"></script>
+        <script src="assets/js/ui-effects.js?v=1.1.1"></script>
+        <script src="assets/js/main.js?v=1.1.1"></script>
+        <script src="assets/js/comment-enhancements.js?v=1.1.1"></script>
+        <script src="assets/js/app.js?v=1.1.1"></script>
+        <script>
+            // 只记录关键错误
+            window.onerror = function (msg, url, line, col, error) {
+                console.error("页面错误:", msg, "line", line);
+                return false;
+            };
 
-        <div id="pagination" class="text-center">
-            <!-- 分页内容将通过JS动态加载 -->
-        </div>
-    </div>
-
-    <script src="assets/js/utils.js?v=1.0.5"></script>
-    <script src="assets/js/error-handler.js?v=1.0.5"></script>
-    <script src="assets/js/ui-effects.js?v=1.0.5"></script>
-    <script src="assets/js/main.js?v=1.0.6"></script>
-    <script src="assets/js/comment-enhancements.js?v=1.0.7"></script>
-    <script src="assets/js/app.js?v=1.0.11"></script>
-    <script>
-        // 只记录关键错误
-        window.onerror = function(msg, url, line, col, error) {
-            console.error('页面错误:', msg, 'line', line);
-            return false;
-        };
-        
-        // 确保页面加载
-        document.addEventListener('DOMContentLoaded', function() {
-            // 检查加载状态
-            setTimeout(function() {
-                const postsContainer = document.getElementById('posts-container');
-                if (postsContainer && postsContainer.querySelector('.spinner') && !postsContainer.querySelector('.card')) {
-                    console.log('检测到加载卡住，尝试重新加载...');
-                    if (window.app && window.app.refresh) {
-                        window.app.refresh();
-                    } else {
-                        location.reload();
+            // 确保页面加载
+            document.addEventListener("DOMContentLoaded", function () {
+                // 检查加载状态
+                setTimeout(function () {
+                    const postsContainer =
+                        document.getElementById("posts-container");
+                    if (
+                        postsContainer &&
+                        postsContainer.querySelector(".spinner") &&
+                        !postsContainer.querySelector(".card")
+                    ) {
+                        console.log("检测到加载卡住，尝试重新加载...");
+                        if (window.app && window.app.refresh) {
+                            window.app.refresh();
+                        } else {
+                            location.reload();
+                        }
                     }
-                }
-            }, 5000);
-        });
-    </script>
-</body>
+                }, 5000);
+            });
+        </script>
+    </body>
 </html>
