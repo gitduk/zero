@@ -466,6 +466,8 @@ textarea.form-control {
 
 .pagination li {
     margin: 0 2px;
+    display: flex;
+    align-items: center;
 }
 
 .pagination a {
@@ -478,6 +480,7 @@ textarea.form-control {
     background-color: #fff;
     border: 1px solid #dee2e6;
     text-decoration: none;
+    font-size: 14px;
 }
 
 .pagination a:hover {
@@ -502,4 +505,33 @@ textarea.form-control {
     cursor: auto;
     background-color: #fff;
     border-color: #dee2e6;
+}
+
+.pagination li.page-jump {
+    display: flex;
+    align-items: center;
+    margin-left: 10px;
+}
+
+.pagination .page-input {
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 4px;
+    margin: 0 5px;
+    font-size: 14px;
+}
+
+.pagination .jump-btn {
+    background-color: #495057;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 5px 10px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.pagination .jump-btn:hover {
+    background-color: #343a40;
 }

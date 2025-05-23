@@ -407,12 +407,20 @@
 
       let html = '<ul class="pagination">';
 
-      // 上一页
+      // 第一页
       if (current > 1) {
-        html += `<li><a href="javascript:void(0)" data-page="${current - 1}">&laquo;</a></li>`;
+        html += `<li><a href="javascript:void(0)" data-page="1" title="第一页">&laquo;</a></li>`;
       } else {
         html +=
-          '<li class="disabled"><a href="javascript:void(0)">&laquo;</a></li>';
+          '<li class="disabled"><a href="javascript:void(0)" title="第一页">&laquo;</a></li>';
+      }
+
+      // 上一页
+      if (current > 1) {
+        html += `<li><a href="javascript:void(0)" data-page="${current - 1}" title="上一页">&lsaquo;</a></li>`;
+      } else {
+        html +=
+          '<li class="disabled"><a href="javascript:void(0)" title="上一页">&lsaquo;</a></li>';
       }
 
       // 页码
@@ -429,11 +437,26 @@
 
       // 下一页
       if (current < total) {
-        html += `<li><a href="javascript:void(0)" data-page="${current + 1}">&raquo;</a></li>`;
+        html += `<li><a href="javascript:void(0)" data-page="${current + 1}" title="下一页">&rsaquo;</a></li>`;
       } else {
         html +=
-          '<li class="disabled"><a href="javascript:void(0)">&raquo;</a></li>';
+          '<li class="disabled"><a href="javascript:void(0)" title="下一页">&rsaquo;</a></li>';
       }
+
+      // 最后一页
+      if (current < total) {
+        html += `<li><a href="javascript:void(0)" data-page="${total}" title="最后一页">&raquo;</a></li>`;
+      } else {
+        html +=
+          '<li class="disabled"><a href="javascript:void(0)" title="最后一页">&raquo;</a></li>';
+      }
+
+      // 添加自定义跳转
+      html += `<li class="page-jump">
+        <span style="margin: 0 5px;">跳转到</span>
+        <input type="number" min="1" max="${total}" class="page-input" style="width: 50px; text-align: center;">
+        <button class="jump-btn" style="margin-left: 5px;">Go</button>
+      </li>`;
 
       html += "</ul>";
       paginationContainer.innerHTML = html;
@@ -446,8 +469,34 @@
           loadPosts(page);
         });
       });
+
+      // 添加自定义跳转事件
+      const jumpBtn = paginationContainer.querySelector(".jump-btn");
+      const pageInput = paginationContainer.querySelector(".page-input");
+
+      if (jumpBtn && pageInput) {
+        jumpBtn.addEventListener("click", function () {
+          handlePageJump(pageInput, total);
+        });
+
+        pageInput.addEventListener("keypress", function (e) {
+          if (e.key === "Enter") {
+            handlePageJump(pageInput, total);
+          }
+        });
+      }
     } catch (err) {
       console.error("更新分页失败:", err);
+    }
+  }
+
+  // 处理页面跳转
+  function handlePageJump(input, total) {
+    let page = parseInt(input.value);
+    if (!isNaN(page) && page >= 1 && page <= total) {
+      loadPosts(page);
+    } else {
+      loadPosts(total);
     }
   }
 
