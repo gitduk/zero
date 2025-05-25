@@ -453,7 +453,6 @@
 
       // 添加自定义跳转
       html += `<li class="page-jump">
-        <span style="margin: 0 5px;">跳转到</span>
         <input type="number" min="1" max="${total}" class="page-input" style="width: 50px; text-align: center;">
         <button class="jump-btn" style="margin-left: 5px;">Go</button>
       </li>`;
