@@ -192,9 +192,8 @@ body {
 }
 
 .form-control:focus {
-    border-color: #80bdff;
     outline: 0;
-    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    box-shadow: 0 0 0 0.1rem rgba(73, 80, 87, 0.8);
     background-color: #fff;
 }
 
@@ -207,8 +206,7 @@ body {
 
 .new-comment-content:focus {
     background-color: #fff;
-    border-color: #ced4da;
-    box-shadow: 0 0 0 0.2rem rgba(206, 212, 218, 0.25);
+    box-shadow: 0 0 0 0.1rem rgba(73, 80, 87, 0.8);
 }
 
 textarea.form-control {
