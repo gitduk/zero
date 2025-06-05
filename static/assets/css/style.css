@@ -471,14 +471,15 @@ textarea.form-control {
 .pagination a {
     position: relative;
     display: block;
-    padding: 0.5rem 0.75rem;
+    padding: 5px 10px;
     margin-left: -1px;
     line-height: 1.25;
     color: #495057;
     background-color: #fff;
     border: 1px solid #dee2e6;
+    border-radius: 4px;
     text-decoration: none;
-    font-size: 14px;
+    font-size: 13px;
 }
 
 .pagination a:hover {
@@ -516,7 +517,7 @@ textarea.form-control {
     border-radius: 4px;
     padding: 4px;
     margin: 0 5px;
-    font-size: 14px;
+    font-size: 13px;
 }
 
 .pagination .jump-btn {
@@ -526,7 +527,7 @@ textarea.form-control {
     border-radius: 4px;
     padding: 5px 10px;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: bold;
 }
 
