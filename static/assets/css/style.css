@@ -509,7 +509,7 @@ textarea.form-control {
 .pagination li.page-jump {
     display: flex;
     align-items: center;
-    margin-left: 10px;
+    margin-left: 4px;
 }
 
 .pagination .page-input {
@@ -525,7 +525,7 @@ textarea.form-control {
     color: white;
     border: none;
     border-radius: 4px;
-    padding: 5px 10px;
+    padding: 5px 5px;
     cursor: pointer;
     font-size: 13px;
     font-weight: bold;
