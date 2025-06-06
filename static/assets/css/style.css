@@ -513,21 +513,24 @@ textarea.form-control {
 }
 
 .pagination .page-input {
+    padding: 4px 4px;
+    width: 20px;
+    text-align: center;
     border: 1px solid #dee2e6;
-    border-radius: 4px;
-    padding: 4px;
-    margin: 0 5px;
+    border-radius: 4px 0 0 4px;
+    line-height: 1.25;
+    outline: none;
     font-size: 13px;
 }
 
 .pagination .jump-btn {
-    background-color: #495057;
     color: white;
+    background-color: #495057;
+    padding: 4px 6px;
     border: none;
-    border-radius: 4px;
-    padding: 5px 5px;
+    border-radius: 0 4px 4px 0;
+    line-height: 1.25;
     cursor: pointer;
-    font-size: 13px;
     font-weight: bold;
 }
 

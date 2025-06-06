@@ -453,8 +453,8 @@
 
       // 添加自定义跳转
       html += `<li class="page-jump">
-        <input type="text" min="1" max="${total}" class="page-input" style="width: 30px; text-align: center; line-height: 1.25;">
-        <button class="jump-btn" style="margin-left: 5px;">Go</button>
+        <input type="text" min="1" max="${total}" class="page-input" placeholder="">
+        <button class="jump-btn">Go</button>
       </li>`;
 
       html += "</ul>";
@@ -478,6 +478,11 @@
           handlePageJump(pageInput, total);
         });
 
+        // 动态更新输入框宽度
+        pageInput.addEventListener('input', function() {
+          adjustInputWidth(this);
+        });
+
         pageInput.addEventListener("keypress", function (e) {
           if (e.key === "Enter") {
             handlePageJump(pageInput, total);
@@ -497,6 +502,20 @@
     } else {
       loadPosts(total);
     }
+  }
+
+  // 精确计算文本宽度
+  function adjustInputWidth(input) {
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    const computedStyle = window.getComputedStyle(input);
+
+    context.font = computedStyle.font;
+    const textWidth = context.measureText(input.value || input.placeholder).width;
+
+    // 添加一些额外的空间（padding + 一点缓冲）
+    const totalWidth = Math.max(20, textWidth);
+    input.style.width = totalWidth + 'px';
   }
 
   // 加载评论
@@ -685,7 +704,6 @@
       // 添加刷新函数
       loadPosts(1);
     },
-    version: "1.0.5", // 添加版本号以便调试
   });
 
   // 添加自我诊断功能
