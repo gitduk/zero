@@ -115,6 +115,8 @@ async fn main() -> anyhow::Result<()> {
         .connect(&database_url)
         .await?;
 
+    tracing::info!("✅ 数据库连接成功 - 连接地址: {}", database_url);
+
     // 运行数据库迁移
     sqlx::migrate!("./migrations").run(&pool).await?;
 
