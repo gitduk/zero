@@ -1,53 +1,42 @@
 
+use ammonia::Builder as AmmoniaBuilder;
+use lazy_static::lazy_static;
+
+lazy_static! {
+    // A single, reusable sanitizer policy for all content
+    static ref SANITIZER: ammonia::Builder<'static> = {
+        let mut builder = AmmoniaBuilder::default();
+        // Allow a minimal, safe set of tags
+        builder
+            .tags([
+                "a", "b", "strong", "i", "em", "code", "pre",
+                "p", "br", "ul", "ol", "li", "blockquote",
+            ])
+            // Only allow safe attributes on anchors
+            .generic_attributes(["title"]).link_rel(Some("nofollow noreferrer noopener"))
+            .allowed_classes(ammonia::collections::HashSet::new())
+            .link_attributes(["href"]) // restrict to href only
+            // Only safe URL schemes for links (disallow javascript:, data:, vbscript:)
+            .url_schemes([
+                "http", "https", "mailto",
+            ]);
+        builder
+    };
+}
+
 /// Sanitizes user-generated content to make it safe for display
-/// while preserving basic formatting and showing content properly.
-///
-/// This function:
-/// 1. Allows basic formatting tags like <br>, <p>, etc.
-/// 2. Strips dangerous tags and attributes
-/// 3. Prevents XSS while maintaining content readability
-///
-/// # Arguments
-/// * `content` - The user-provided content to sanitize
-///
-/// # Returns
-/// * A sanitized string that is safe to display in HTML
+/// while preserving basic formatting (e.g., line breaks and simple tags).
 pub fn sanitize_content(content: &str) -> String {
-    // Simple approach for safety with readability:
-    // 1. Replace line breaks with <br> tags for readability
-    // 2. Escape all HTML to prevent any code execution
-    // 3. Then selectively unescape safe formatting elements
-    
-    // Step 1: Handle newlines for proper display
-    let with_breaks = content.replace("\n", "<br>");
-    
-    // Step 2: Basic sanitization of dangerous scripts and elements
-    let mut result = with_breaks.to_string();
-    
-    // Handle script tags and other dangerous elements
-    result = result
-        .replace("<script", "&lt;script")
-        .replace("</script", "&lt;/script")
-        .replace("<iframe", "&lt;iframe")
-        .replace("</iframe", "&lt;/iframe")
-        .replace("<object", "&lt;object")
-        .replace("<embed", "&lt;embed")
-        .replace("<base", "&lt;base");
-    
-    // Handle dangerous attributes and protocols
-    result = result
-        .replace("javascript:", "blocked-javascript:")
-        .replace("data:", "blocked-data:")
-        .replace("vbscript:", "blocked-vbscript:")
-        .replace(" onerror=", " data-blocked-onerror=")
-        .replace(" onload=", " data-blocked-onload=")
-        .replace(" onclick=", " data-blocked-onclick=")
-        .replace(" onmouseover=", " data-blocked-onmouseover=")
-        .replace(" onfocus=", " data-blocked-onfocus=")
-        .replace(" onblur=", " data-blocked-onblur=");
-        
-    // Return the sanitized content
-    result
+    // Convert newlines to <br> for readability before sanitization.
+    // The sanitizer will keep <br> because it's in the allowlist.
+    let with_breaks = content.replace('\n', "<br>");
+
+    // Clean using a strict allowlist policy.
+    // - Removes event handlers (onload, onerror, etc.)
+    // - Removes style and other unsafe attributes
+    // - Strips dangerous tags (script, iframe, etc.)
+    // - Rejects javascript: / data: / vbscript: URLs
+    SANITIZER.clean(&with_breaks).to_string()
 }
 
 /// Sanitizes content for database insertion
@@ -81,44 +70,34 @@ mod tests {
 
     #[test]
     fn test_sanitize_content() {
-        // Test HTML sanitization
+        // <script> should be removed entirely
         let result = sanitize_content("<script>alert('XSS')</script>");
-        println!("HTML sanitization result: {}", result);
-        assert!(result.contains("&lt;script"));
-        assert!(result.contains("alert"));
+        assert!(!result.to_lowercase().contains("<script"));
+        assert!(!result.to_lowercase().contains("javascript:"));
 
-        // Test allowed tags and line breaks
+        // Line breaks should be preserved
         let result = sanitize_content("This is a\nline break");
-        println!("Line break result: {}", result);
         assert!(result.contains("<br>"));
-    
-        // Check basic formatting is preserved
+
+        // Basic formatting preserved
         let result = sanitize_content("<p>This is <b>bold</b> and <i>italic</i></p>");
-        println!("Formatting tags result: {}", result);
         assert!(result.contains("<b>bold</b>"));
 
-        // Test SQL injection displayed as plain text
+        // Plain strings stay intact
         let sql = "SELECT * FROM users WHERE username = 'admin' OR '1'='1';";
         let result = sanitize_content(sql);
-        println!("SQL sanitization result: {}", result);
         assert_eq!(result, sql);
-        
-        // Test event handler XSS
+
+        // Event handlers are stripped
         let result = sanitize_content("<img src=x onerror=\"alert(1)\">");
-        println!("Event handler XSS result: {}", result);
-        assert!(result.contains("data-blocked-onerror"));
+        assert!(!result.to_lowercase().contains("onerror"));
 
-        // Test script in div
-        let result = sanitize_content("<div><script>alert(123)</script></div>");
-        assert!(result.contains("<div>"));
-        assert!(result.contains("&lt;script"));
-
-        // Test JavaScript protocol
+        // javascript: protocol is removed
         let result = sanitize_content("<a href=\"javascript:alert('XSS')\">Click me</a>");
-        assert!(result.contains("blocked-javascript:"));
+        assert!(!result.to_lowercase().contains("javascript:"));
 
-        // Test data URI XSS
+        // data: uri should not pass for src/href
         let result = sanitize_content("<img src=\"data:text/html,<script>alert(1)</script>\">");
-        assert!(result.contains("blocked-data:"));
+        assert!(!result.to_lowercase().contains("data:"));
     }
 }

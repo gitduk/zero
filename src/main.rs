@@ -43,7 +43,7 @@ async fn add_security_headers(
         response.headers_mut().insert(
             header::CONTENT_SECURITY_POLICY,
             HeaderValue::from_static(
-                "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: https: http:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https: http:; img-src 'self' data: blob: https: http:; style-src 'self' 'unsafe-inline' https: http:; connect-src 'self' ws: wss: https: http:; font-src 'self' data: https: http:; frame-ancestors 'none'"
+                "default-src 'self'; script-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; connect-src 'self' ws: wss:; font-src 'self' data:; frame-ancestors 'none'"
             ),
         );
         
