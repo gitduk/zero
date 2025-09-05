@@ -1,6 +1,7 @@
 
 use ammonia::Builder as AmmoniaBuilder;
 use lazy_static::lazy_static;
+use std::collections::{HashMap, HashSet};
 
 lazy_static! {
     // A single, reusable sanitizer policy for all content
@@ -9,17 +10,19 @@ lazy_static! {
         // Allow a minimal, safe set of tags
         builder
             .tags([
-                "a", "b", "strong", "i", "em", "code", "pre",
-                "p", "br", "ul", "ol", "li", "blockquote",
-            ])
+                "a", "b", "strong", "i", "em", "code", "pre", "p", "br", "ul", "ol", "li", "blockquote",
+            ].into_iter().collect::<HashSet<_>>())
             // Only allow safe attributes on anchors
-            .generic_attributes(["title"]).link_rel(Some("nofollow noreferrer noopener"))
-            .allowed_classes(ammonia::collections::HashSet::new())
-            .link_attributes(["href"]) // restrict to href only
+            .generic_attributes(["title"].into_iter().collect::<HashSet<_>>())
+            .link_rel(Some("nofollow noreferrer noopener"))
+            // Restrict attributes per tag (only href for anchors)
+            .tag_attributes({
+                let mut m: HashMap<&str, HashSet<&str>> = HashMap::new();
+                m.insert("a", ["href"].into_iter().collect());
+                m
+            })
             // Only safe URL schemes for links (disallow javascript:, data:, vbscript:)
-            .url_schemes([
-                "http", "https", "mailto",
-            ]);
+            .url_schemes(["http", "https", "mailto"].into_iter().collect::<HashSet<_>>());
         builder
     };
 }
